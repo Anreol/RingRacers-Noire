@@ -65,9 +65,8 @@ struct setup_nestedchar {
 
 extern struct setup_flatchargrid_s {
     UINT8 sortingMode; 					// How we are currently sorting
-	UINT8 numSkins; 					// Length of skinList, as skinList is dynamically allocated.
 	boolean isExtended; 				// Is SkinList expanded right now or not, showing children as individual items outside of their parents.
-    struct setup_nestedchar *skinList; // Skins that we'll have
+    struct setup_nestedchar *skinList; // Skins that we'll have. Will be allocated to be the size of numSkins.
 } setup_flatchargrid;
 
 //NOTES:

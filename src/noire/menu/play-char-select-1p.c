@@ -385,8 +385,8 @@ void M_Character1PSelectInit(void)
 
 	memset(&setup_flatchargrid, -1, sizeof(setup_flatchargrid));
 	setup_flatchargrid.sortingMode = 0;
-	setup_flatchargrid.numSkins = 0;
 	setup_flatchargrid.isExtended = false;
+	setup_flatchargrid.skinList = Z_Malloc(sizeof(struct setup_nestedchar) * numskins, PU_STATIC, NULL);
 
 	memset(setup_player, 0, sizeof(setup_player));
 	setup_numplayers = 0;
@@ -435,71 +435,36 @@ void M_Character1PSelectInit(void)
 		}
 	}
 
+	// Cycle through all skins... woah...
+	for (i = 0; i < numskins; i++)
 	{
-		UINT8 skinsWithParents[1]; // = Z_Malloc(sizeof(UINT8), PU_STATIC, NULL); // skin ids with parents.
-		UINT8 skinsWithParentsSize = 0;
+		if (!R_SkinUsable(g_localplayers[0], i, false))
+			continue; // SKIP
 
-		// Cycle through all skins... woah...
-		for (i = 0; i < numskins; i++)
+		int32_t parentNum;
+		for (j = 0; j < SKINPARENTS; j++)
 		{
-			if (!R_SkinUsable(g_localplayers[0], i, false))
-				continue; // SKIP
+			const char* parentName = skins[i].parentnames[j];
+			parentNum = R_SkinAvailableEx(parentName, false); // See if the parent is available.
 
-			if (skins[i].parentnames[0][0] != NULL) // This is meant to have a parent! Keep it for later.
-			{
-				add_element((void**) &skinsWithParents, &skinsWithParentsSize, sizeof(UINT8), (void*)&i);
-				continue;
-			}
+			if (parentNum == -1)
+				continue; // Doesn't match! Continue.
 
-			// Otherwise, just add it to the list
-			struct setup_nestedchar* newNestedChar = malloc(sizeof(struct setup_nestedchar));
-			newNestedChar->parentSkinId = i;
-			newNestedChar->childNum = 0;
-			memset(newNestedChar->childrenSkinIds, 0, sizeof(0));
-
-			add_element((void**) &setup_flatchargrid.skinList,&setup_flatchargrid.numSkins,sizeof(struct setup_nestedchar), (void*)&newNestedChar);
+			// Exit!
+			break;
 		}
 
-		if (i == numskins) // Reached the end. Assign the parents...
-		{
-			for (i = 0; i < skinsWithParentsSize; i++)
-			{
-				UINT8 childId = skinsWithParents[i];
-				int32_t parentNum;
-				for (j = 0; j < SKINPARENTS; j++)
-				{
-					const char* parentName = skins[childId].parentnames[j];
-					parentNum = R_SkinAvailableEx(parentName, false); // See if the parent is available.
+		//Check if the parent is ahead of us, not defined yet.
+		if(&setup_flatchargrid.skinList[parentNum] == NULL){
 
-					if (parentNum == -1)
-						continue; // Doesn't match! Continue.
-
-					// Exit!
-					break;
-				}
-
-				if (parentNum == -1) // We didn't find a parent...
-				{
-					// Add it to the default list.
-					struct setup_nestedchar* newNestedChar = Z_Malloc(sizeof(struct setup_nestedchar), PU_STATIC, NULL);
-					newNestedChar->parentSkinId = childId;
-					newNestedChar->childNum = 0;
-					memset(newNestedChar->childrenSkinIds, 0, sizeof(0));
-
-					add_element((void**) &setup_flatchargrid.skinList,&setup_flatchargrid.numSkins,sizeof(struct setup_nestedchar), (void*)&newNestedChar);
-					continue;
-				}
-
-				// We need to cycle again to find and add it to the parent...
-				for (size_t y = 0; y < setup_flatchargrid.numSkins; y++)
-				{
-					if (setup_flatchargrid.skinList[y].parentSkinId == parentNum)
-					{
-						add_element((void**) &setup_flatchargrid.skinList[y].childrenSkinIds, &setup_flatchargrid.skinList[y].childNum, sizeof(UINT8), (void*)&childId);
-					}
-				}
-			}
 		}
+
+		struct setup_nestedchar *newNestedChar = malloc(sizeof(struct setup_nestedchar));
+		newNestedChar->parentSkinId = i;
+		newNestedChar->childNum = 0;
+		memset(newNestedChar->childrenSkinIds, 0, sizeof(0));
+
+		setup_flatchargrid.skinList[i] = *newNestedChar;
 	}
 
 	setup_numfollowercategories = 0;
