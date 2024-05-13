@@ -57,17 +57,19 @@ boolean M_Character1PSelectHandler(INT32);
 
 UINT8 M_GetSkinIndexGivenPos(setup_player_t* p);
 
-struct setup_nestedchar {
-    UINT8 parentSkinId; //Skin ID of this (the parent).
-    UINT8 childNum; // Amount of items in childrenSkinIds
-    UINT8 *childrenSkinIds; //Skin IDs that will be hold in this instance. Needs to be dynamically allocated!
-};
+typedef struct setup_nestedchar {
+    UINT8 numClones; // Amount of items in cloneIds
+    UINT8 *cloneIds; //Skin IDs that will be hold in this instance. Needs to be dynamically allocated!
+} setup_nestedchar_s;
 
-extern struct setup_flatchargrid_s {
+typedef struct setup_flatchargrid_t {
     UINT8 sortingMode; 					// How we are currently sorting
-	boolean isExtended; 				// Is SkinList expanded right now or not, showing children as individual items outside of their parents.
-    struct setup_nestedchar *skinList; // Skins that we'll have. Will be allocated to be the size of numSkins.
-} setup_flatchargrid;
+	boolean isExtended; 				// Is SkinList expanded right now or not, showing clones as individual items outside of their parents.
+    setup_nestedchar_s *skinList;       // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL ONLY HAVE USUABLE SKINS.
+	UINT8 *drawingList;					// List of skinList indexes that we will draw. This will be resized and shuffled and whatever.
+} setup_flatchargrid_s;
+
+extern setup_flatchargrid_s setup_flatchargrid;
 
 //NOTES:
 //Is allocating skinList dynamically worth it? we WILl eventually have the same amount of data as numskins which is 255 or whatever

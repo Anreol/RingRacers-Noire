@@ -27,7 +27,7 @@ static void M_DrawCharSelectCircle(setup_player_t *p, INT16 x, INT16 y)
 	switch (p->mdepth)
 	{
 		case CSSTEP_ALTS:
-			numoptions = setup_flatchargrid.skinList[skinIndexGivenPos].childNum;
+			numoptions = setup_flatchargrid.skinList[skinIndexGivenPos].numClones;
 			break;
 		case CSSTEP_COLORS:
 		case CSSTEP_FOLLOWERCOLORS:
@@ -75,7 +75,7 @@ static void M_DrawCharSelectCircle(setup_player_t *p, INT16 x, INT16 y)
 					n += ((i+1)/2);
 				n = (n + numoptions) % numoptions;
 
-				skin = setup_flatchargrid.skinList[skinIndexGivenPos].childrenSkinIds[n];
+				skin = setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[n];
 				patch = faceprefix[skin][FACE_RANK];
 				colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
 				radius = 24<<FRACBITS;
@@ -548,12 +548,12 @@ static void M_DrawCharSelectPreview(UINT8 num)
 		{
 			case CSSTEP_ALTS: // Select clone
 			case CSSTEP_READY:
-				if (p->clonenum < setup_flatchargrid.skinList[skinIndexGivenPos].childNum
-					&& setup_flatchargrid.skinList[skinIndexGivenPos].childrenSkinIds[p->clonenum] < numskins)
+				if (p->clonenum < setup_flatchargrid.skinList[skinIndexGivenPos].numClones
+					&& setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[p->clonenum] < numskins)
 				{
 					V_DrawThinString(x-3, y+12, 0,
-						skins[setup_flatchargrid.skinList[skinIndexGivenPos].childrenSkinIds[p->clonenum]].name);
-					randomskin = (skins[setup_flatchargrid.skinList[skinIndexGivenPos].childrenSkinIds[p->clonenum]].flags & SF_IRONMAN);
+						skins[setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[p->clonenum]].name);
+					randomskin = (skins[setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[p->clonenum]].flags & SF_IRONMAN);
 				}
 				else
 				{
@@ -815,7 +815,7 @@ void M_DrawCharacter1PSelect(void)
 			}
 			else
 			{
-				skin = setup_flatchargrid.skinList[i+j].childrenSkinIds[setup_page];
+				skin = setup_flatchargrid.skinList[i+j].cloneIds[setup_page];
 			}
 
 			for (k = 0; k < setup_numplayers; k++)
@@ -842,7 +842,7 @@ void M_DrawCharacter1PSelect(void)
 				V_DrawMappedPatch(basex + 82 + (i*16) + quadx, 22 + (j*16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
 
 				// draw dot if there are more alts behind there!
-				if (forceskin == false && setup_page+1 < setup_flatchargrid.skinList[i+j].childNum)
+				if (forceskin == false && setup_page+1 < setup_flatchargrid.skinList[i+j].numClones)
 					V_DrawScaledPatch(basex + 82 + (i*16) + quadx, 22 + (j*16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE));
 			}
 		}

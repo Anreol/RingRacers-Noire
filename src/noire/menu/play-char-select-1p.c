@@ -23,6 +23,7 @@
 #include "../n_func.h"
 #include "../n_menu.h"
 
+
 // #define CHARSELECT_DEVICEDEBUG
 
 menuitem_t PLAY_CharSelect1P[] = {
@@ -70,7 +71,7 @@ CV_PossibleValue_t skins_cons_t[MAXSKINS+1] = {{1, DEFAULTSKIN}};
 // @TODO: Splitscreen handling when profiles are added into the game. ...I probably won't be the one to handle this
 // however. -Lat'
 
-struct setup_flatchargrid_s setup_flatchargrid;
+setup_flatchargrid_s setup_flatchargrid;
 #define CHARSEL_MAX_COLUMNS 10 // Maximum number of columns in the grid
 
 /*
@@ -167,50 +168,27 @@ UINT16 M_GetColorAfter(setup_player_colors_t *colors, UINT16 value, INT32 amount
 	return colors->list[index];
 }*/
 
-// Given a skin ID and a player, put the player's gridx and gridy after finding that skin in setup_flatchargrid
+// Given a skin ID and a player, put the player's gridx and gridy after finding that skin in setup_flatchargrid.drawingList
 static void M_PositionPlayerInGrid(setup_player_t* p, UINT8 skin) {
-    // Find the index of the skin in setup_flatchargrid
-    int skinIndex = -1;
-	for (int i = 0; i < setup_flatchargrid.numSkins && skinIndex == -1; i++)
-	{
-		// Is it the parent?
-		if (setup_flatchargrid.skinList[i].parentSkinId == skin)
-		{
-			skinIndex = i;
-			break;
-		}
-		// Search within the parent.
-		for (size_t j = 0; j < setup_flatchargrid.skinList[i].childNum; j++)
-		{
-			if (setup_flatchargrid.skinList[i].childrenSkinIds[j] == skin)
-			{
-				skinIndex = !setup_flatchargrid.isExtended ? i : i + j; // If its not extended, get the index of the parent, otherwise, parent + offset of the child (j)
-				break;
-			}
-		}
-	}
-
-	// Calculate gridx and gridy
-    if (skinIndex >= 0) {
-        p->gridx = skinIndex % CHARSEL_MAX_COLUMNS; // Column index
-        p->gridy = skinIndex / CHARSEL_MAX_COLUMNS; // Row index
-    } else {
-        // Skin not found in the grid
-        // Handle error or default position
+    UINT8 skinIndex = 0;
+    // Find the index of the skin in the drawing list
+    for (UINT8 i = 0; i < CHARSEL_MAX_COLUMNS; i++) {
+        if (setup_flatchargrid.drawingList[i] == skin) {
+            skinIndex = i;
+            break;
+        }
     }
+
+    // Calculate gridx and gridy
+    p->gridx = skinIndex % CHARSEL_MAX_COLUMNS;
+    p->gridy = skinIndex / CHARSEL_MAX_COLUMNS;
 }
 
-//Get the index of the skin the player is hovering over in the grid.
+// Get the index of the skin the player is hovering over in the grid.
 UINT8 M_GetSkinIndexGivenPos(setup_player_t* p) {
-    // Calculate the index of the skin in setup_flatchargrid.skinList
-    int skinIndex = p->gridy * CHARSEL_MAX_COLUMNS + p->gridx;
-
-    // Return the skin at the calculated index
-    if (skinIndex >= 0 && skinIndex < setup_flatchargrid.numSkins) {
-        return skinIndex;
-    } else {
-        return 0; //Handle out of bounds...
-    }
+    // Calculate the index of the skin based on player's gridx and gridy
+    UINT8 skinIndex = p->gridy * CHARSEL_MAX_COLUMNS + p->gridx;
+    return setup_flatchargrid.drawingList[skinIndex];
 }
 
 static void M_NewPlayerColors(setup_player_t* p)
@@ -295,17 +273,13 @@ static void M_SetupProfileGridPos(setup_player_t* p)
 	// Is the grid currently collapsed?
 	if (setup_flatchargrid.isExtended == false)
 	{
-		// If its not, we have to find our skinId in the nests
-		for (size_t x = 0; x < setup_flatchargrid.numSkins; x++)
+		// If it is, we need to get the "depth" (child id) of it for p.clonenum
+		for (size_t y = 0; y < setup_flatchargrid.skinList[parentSkinId].numClones; y++)
 		{
-			for (size_t y = 0; y < setup_flatchargrid.skinList[x].childNum; y++)
+			if (setup_flatchargrid.skinList[parentSkinId].cloneIds[y] == skinId)
 			{
-				if (setup_flatchargrid.skinList[x].childrenSkinIds[y] == skinId)
-				{
-					alt = y;													// asign the depth
-					parentSkinId = setup_flatchargrid.skinList[x].parentSkinId; // And get the parent
-					break;
-				}
+				alt = y; // asign the depth
+				break;
 			}
 		}
 	}
@@ -354,17 +328,13 @@ static void M_SetupMidGameGridPos(setup_player_t* p, UINT8 num)
 	// Is the grid currently collapsed?
 	if (setup_flatchargrid.isExtended == false)
 	{
-		// If its not, we have to find our skinId in the nests
-		for (size_t x = 0; x < setup_flatchargrid.numSkins; x++)
+		// If it is, we need to get the "depth" (child id) of it for p.clonenum
+		for (size_t y = 0; y < setup_flatchargrid.skinList[parentSkinId].numClones; y++)
 		{
-			for (size_t y = 0; y < setup_flatchargrid.skinList[x].childNum; y++)
+			if (setup_flatchargrid.skinList[parentSkinId].cloneIds[y] == skinId)
 			{
-				if (setup_flatchargrid.skinList[x].childrenSkinIds[y] == skinId)
-				{
-					alt = y;													// asign the depth
-					parentSkinId = setup_flatchargrid.skinList[x].parentSkinId; // And get the parent
-					break;
-				}
+				alt = y; // asign the depth
+				break;
 			}
 		}
 	}
@@ -383,10 +353,10 @@ void M_Character1PSelectInit(void)
 	UINT8 i, j;
 	setup_maxpage = 0;
 
-	memset(&setup_flatchargrid, -1, sizeof(setup_flatchargrid));
+	memset(&setup_flatchargrid, -1, sizeof(setup_flatchargrid_s));
 	setup_flatchargrid.sortingMode = 0;
 	setup_flatchargrid.isExtended = false;
-	setup_flatchargrid.skinList = Z_Malloc(sizeof(struct setup_nestedchar) * numskins, PU_STATIC, NULL);
+	setup_flatchargrid.skinList = Z_Malloc(sizeof(setup_nestedchar_s) * numskins, PU_STATIC, NULL);
 
 	memset(setup_player, 0, sizeof(setup_player));
 	setup_numplayers = 0;
@@ -454,16 +424,35 @@ void M_Character1PSelectInit(void)
 			break;
 		}
 
-		//Check if the parent is ahead of us, not defined yet.
-		if(&setup_flatchargrid.skinList[parentNum] == NULL){
-
+		if (parentNum != -1) // We have a parent
+		{
+			// Check if the not defined yet, as its id might be ahead of us
+			if (&setup_flatchargrid.skinList[parentNum] == NULL)
+			{
+				struct setup_nestedchar* newNestedChar = malloc(sizeof(setup_nestedchar_s));
+				newNestedChar->numClones = 1;
+				newNestedChar->cloneIds = Z_Malloc(sizeof(setup_nestedchar_s) * newNestedChar->numClones, PU_STATIC, NULL);
+				newNestedChar->cloneIds[0] = i;
+			}
+			else //It is defined
+			{
+				setup_flatchargrid.skinList[parentNum].numClones++;
+				if (setup_flatchargrid.skinList[parentNum].cloneIds == NULL) {
+					setup_flatchargrid.skinList[parentNum].cloneIds = Z_Malloc(sizeof(UINT8), PU_STATIC, NULL);
+					setup_flatchargrid.skinList[parentNum].cloneIds[0] = i;
+				}
+				else {
+					setup_flatchargrid.skinList[parentNum].cloneIds = Z_Realloc(setup_flatchargrid.skinList[parentNum].cloneIds, sizeof(UINT8) * (setup_flatchargrid.skinList[parentNum].numClones + 1), PU_STATIC, &i);
+					setup_flatchargrid.skinList[parentNum].cloneIds[setup_flatchargrid.skinList[parentNum].numClones - 1] = i;
+				}
+			}
+			continue;
 		}
 
-		struct setup_nestedchar *newNestedChar = malloc(sizeof(struct setup_nestedchar));
-		newNestedChar->parentSkinId = i;
-		newNestedChar->childNum = 0;
-		memset(newNestedChar->childrenSkinIds, 0, sizeof(0));
-
+		// Otherwise just add it
+		struct setup_nestedchar* newNestedChar = malloc(sizeof(setup_nestedchar_s));
+		newNestedChar->numClones = 0;
+		newNestedChar->cloneIds = NULL; //Nothing yet
 		setup_flatchargrid.skinList[i] = *newNestedChar;
 	}
 
@@ -838,20 +827,12 @@ boolean M_CharacterSelectForceInAction(void)
 static void M_HandleBackToChars(setup_player_t* p)
 {
 	boolean forceskin = M_CharacterSelectForceInAction();
-	if (forceskin)
+	if (forceskin || setup_flatchargrid.skinList[p->skin].numClones == 0)
 	{
 		p->mdepth = CSSTEP_CHARS; // Skip clones menu
 		return;
 	}
 
-	for (size_t i = 0; i < setup_flatchargrid.numSkins; i++)
-	{
-		if (setup_flatchargrid.skinList[i].parentSkinId == p->skin) //Skin is a parent.
-		{
-			p->mdepth = CSSTEP_CHARS;
-			return;
-		}
-	}
 	//Otherwise we are in clones.
 	p->mdepth = CSSTEP_ALTS;
 }
@@ -949,7 +930,7 @@ static boolean M_HandleCharacterGrid(setup_player_t* p, UINT8 num)
 	// Process this after possible pad movement,
 	// this makes sure we don't have a weird ghost hover on a character with no clones.
 	UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-	numclones = setup_flatchargrid.skinList[skinIndexInPos].childNum;
+	numclones = setup_flatchargrid.skinList[skinIndexInPos].numClones;
 
 	if (p->clonenum >= numclones)
 		p->clonenum = 0;
@@ -1035,7 +1016,7 @@ static boolean M_HandleCharacterGrid(setup_player_t* p, UINT8 num)
 static void M_HandleCharRotate(setup_player_t* p, UINT8 num)
 {
 	UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-	UINT8 numclones = setup_flatchargrid.skinList[skinIndexInPos].childNum;
+	UINT8 numclones = setup_flatchargrid.skinList[skinIndexInPos].numClones;
 
 	if (cv_splitdevice.value)
 		num = 0;
@@ -1453,7 +1434,7 @@ boolean M_Character1PSelectHandler(INT32 choice)
 		else
 		{
 			UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-			p->skin = setup_flatchargrid.skinList[skinIndexInPos].childrenSkinIds[p->clonenum];
+			p->skin = setup_flatchargrid.skinList[skinIndexInPos].cloneIds[p->clonenum];
 		}
 
 		if (playersChanged == true)
