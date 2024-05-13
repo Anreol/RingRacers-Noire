@@ -800,51 +800,49 @@ void M_DrawCharacter1PSelect(void)
 	V_DrawScaledPatch(basex+ 3, 2, 0, W_CachePatchName((optionsmenu.profile ? "PR_STGRPH" : "STATGRPH"), PU_CACHE));
 
 	// Draw the icons now
-	for (i = 0; i < 9; i++)
+	UINT8 numRows = (setup_flatchargrid.drawingListCount + CHARSEL_MAX_COLUMNS - 1) / CHARSEL_MAX_COLUMNS; // Calculate the number of rows
+	for (UINT8 index = 0; index < setup_flatchargrid.drawingListCount; index++)
 	{
-		if ((forceskin == true) && (i != skins[cv_forceskin.value].kartspeed-1))
+		UINT8 i = index % CHARSEL_MAX_COLUMNS;
+		UINT8 j = index / CHARSEL_MAX_COLUMNS;
+
+		UINT8 skin = setup_flatchargrid.drawingList[index];
+
+		if ((forceskin == true) && (skin != cv_forceskin.value))
 			continue;
 
-		for (j = 0; j < 9; j++)
+		for (UINT8 k = 0; k < setup_numplayers; k++)
 		{
-			if (forceskin == true)
-			{
-				if (j != skins[cv_forceskin.value].kartweight-1)
-					continue;
-				skin = cv_forceskin.value;
-			}
+			if (setup_player[k].mdepth < CSSTEP_ASKCHANGES)
+				continue;
+			if (setup_player[k].gridx != i || setup_player[k].gridy != j)
+				continue;
+			break; // k == setup_numplayers means no one has it selected
+		}
+
+		UINT8 quadx = 4 * (i / 3);
+		UINT8 quady = 4 * (j / 3);
+
+		if (skin != -1)
+		{
+			UINT8* colormap;
+
+			if (k == setup_numplayers)
+				colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_GREY, GTC_MENUCACHE);
 			else
-			{
-				skin = setup_flatchargrid.skinList[i+j].cloneIds[setup_page];
-			}
+				colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
 
-			for (k = 0; k < setup_numplayers; k++)
-			{
-				if (setup_player[k].mdepth < CSSTEP_ASKCHANGES)
-					continue;
-				if (setup_player[k].gridx != i || setup_player[k].gridy != j)
-					continue;
-				break; // k == setup_numplayers means no one has it selected
-			}
+			V_DrawMappedPatch(
+				basex + 82 + (i * 16) + quadx,
+				22 + (j * 16) + quady,
+				0,
+				faceprefix[skin][FACE_RANK],
+				colormap
+			);
 
-			quadx = 4 * (i / 3);
-			quady = 4 * (j / 3);
-
-			if (skin != -1)
-			{
-				UINT8 *colormap;
-
-				if (k == setup_numplayers)
-					colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_GREY, GTC_MENUCACHE);
-				else
-					colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
-
-				V_DrawMappedPatch(basex + 82 + (i*16) + quadx, 22 + (j*16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
-
-				// draw dot if there are more alts behind there!
-				if (forceskin == false && setup_page+1 < setup_flatchargrid.skinList[i+j].numClones)
-					V_DrawScaledPatch(basex + 82 + (i*16) + quadx, 22 + (j*16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE));
-			}
+			// draw dot if there are more alts behind there!
+			if (!forceskin && setup_page + 1 < setup_flatchargrid.skinList[index].numClones)
+				V_DrawScaledPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE) );
 		}
 	}
 

@@ -46,7 +46,7 @@ extern menuitem_t OPTIONS_Noire[];
 extern menu_t OPTIONS_NoireDef;
 
 //Character Menu stuff
-//Def and functions
+//Defs
 extern menu_t PLAY_CharSelect1PDef;
 void M_Character1PSelect(INT32);
 void M_DrawCharacter1PSelect(void);
@@ -55,18 +55,38 @@ void M_Character1PSelectInit(void);
 boolean M_Character1PSelectQuit(void);
 boolean M_Character1PSelectHandler(INT32);
 
+//Functions:
+void M_ResetDrawingList(void);
 UINT8 M_GetSkinIndexGivenPos(setup_player_t* p);
 
-typedef struct setup_nestedchar {
+#define CHARSEL_MAX_COLUMNS 9
+
+typedef enum setup_sortMode {
+    DEFAULT_ID = 1,
+    NAME,
+    REALNAME,
+    PREFCOLOR,
+    WEIGHT,
+    SPEED,
+    ENGINECLASS
+} setup_sortMode_e;
+
+typedef struct setup_parentchar {
     UINT8 numClones; // Amount of items in cloneIds
     UINT8 *cloneIds; //Skin IDs that will be hold in this instance. Needs to be dynamically allocated!
-} setup_nestedchar_s;
+} setup_parentchar_s;
+
+typedef union parentclone {
+    setup_parentchar_s clones;
+    UINT8 parentID;
+} parentclone_u;
 
 typedef struct setup_flatchargrid_t {
-    UINT8 sortingMode; 					// How we are currently sorting
+    setup_sortMode_e sortingMode; 		// How we are currently sorting
 	boolean isExtended; 				// Is SkinList expanded right now or not, showing clones as individual items outside of their parents.
-    setup_nestedchar_s *skinList;       // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL ONLY HAVE USUABLE SKINS.
+    setup_parentchar_s *skinList;       // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL ONLY HAVE USUABLE SKINS.
 	UINT8 *drawingList;					// List of skinList indexes that we will draw. This will be resized and shuffled and whatever.
+    UINT8 drawingListCount;
 } setup_flatchargrid_s;
 
 extern setup_flatchargrid_s setup_flatchargrid;

@@ -72,7 +72,6 @@ CV_PossibleValue_t skins_cons_t[MAXSKINS+1] = {{1, DEFAULTSKIN}};
 // however. -Lat'
 
 setup_flatchargrid_s setup_flatchargrid;
-#define CHARSEL_MAX_COLUMNS 10 // Maximum number of columns in the grid
 
 /*
 setup_player_t setup_player[MAXSPLITSCREENPLAYERS];
@@ -184,11 +183,33 @@ static void M_PositionPlayerInGrid(setup_player_t* p, UINT8 skin) {
     p->gridy = skinIndex / CHARSEL_MAX_COLUMNS;
 }
 
-// Get the index of the skin the player is hovering over in the grid.
 UINT8 M_GetSkinIndexGivenPos(setup_player_t* p) {
     // Calculate the index of the skin based on player's gridx and gridy
     UINT8 skinIndex = p->gridy * CHARSEL_MAX_COLUMNS + p->gridx;
     return setup_flatchargrid.drawingList[skinIndex];
+}
+
+//Reset the memory in drawingList, 
+////set its size to UINT8 * numskins, then proceed to fill it to the indexes of then proceed to fill it to the indexes of setup_flatchargrid.skinList (which is a parallel list of skins, where the skin_t are) with the following rules:
+//if setup_flatchargrid.isExtended is false, do not put in ids that are part of a parent in the array
+//Then after filling it, sort depending on setup_nestedchar_s.sortingMode:
+//	EFAULT_ID sort by their character id (index in skins[])
+//	NAME sort by skin.name
+//	REALNAME sort by skin.realname
+//	PREFCOLOR sort by skin.prefcolor
+//	WEIGHT sort by skin.kartweight
+//	SPEED sort by skin.kartspeed
+//	ENGINECLASS sort by calling R_GetEngineClass, and sort up to down (ENGINECLASS_A, ENGINECLASS_B...)
+void M_ResetDrawingList(void){
+    free(setup_flatchargrid.drawingList);
+    setup_flatchargrid.drawingList = NULL;
+
+    setup_flatchargrid.drawingList = (UINT8 *)malloc(sizeof(UINT8) * numskins);
+
+    for (UINT8 i = 0; i < numskins; i++) {
+        setup_flatchargrid.drawingList[i] = i;
+		setup_flatchargrid.drawingListCount++;
+    }
 }
 
 static void M_NewPlayerColors(setup_player_t* p)
@@ -264,8 +285,7 @@ static void M_SetupProfileGridPos(setup_player_t* p)
 
 	if (!R_SkinUsable(g_localplayers[0], skinId, false))
 	{
-		skinId =
-			GetSkinNumClosestToStats(skins[skinId].kartspeed, skins[skinId].kartweight, skins[skinId].flags, false);
+		skinId = GetSkinNumClosestToStats(skins[skinId].kartspeed, skins[skinId].kartweight, skins[skinId].flags, false);
 	}
 
 	INT32 parentSkinId = skinId;
@@ -354,9 +374,9 @@ void M_Character1PSelectInit(void)
 	setup_maxpage = 0;
 
 	memset(&setup_flatchargrid, -1, sizeof(setup_flatchargrid_s));
-	setup_flatchargrid.sortingMode = 0;
+	setup_flatchargrid.sortingMode = 1;
 	setup_flatchargrid.isExtended = false;
-	setup_flatchargrid.skinList = Z_Malloc(sizeof(setup_nestedchar_s) * numskins, PU_STATIC, NULL);
+	setup_flatchargrid.skinList = Z_Malloc(sizeof(setup_parentchar_s) * numskins, PU_STATIC, NULL);
 
 	memset(setup_player, 0, sizeof(setup_player));
 	setup_numplayers = 0;
@@ -429,9 +449,9 @@ void M_Character1PSelectInit(void)
 			// Check if the not defined yet, as its id might be ahead of us
 			if (&setup_flatchargrid.skinList[parentNum] == NULL)
 			{
-				struct setup_nestedchar* newNestedChar = malloc(sizeof(setup_nestedchar_s));
+				struct setup_parentchar* newNestedChar = malloc(sizeof(setup_parentchar_s));
 				newNestedChar->numClones = 1;
-				newNestedChar->cloneIds = Z_Malloc(sizeof(setup_nestedchar_s) * newNestedChar->numClones, PU_STATIC, NULL);
+				newNestedChar->cloneIds = Z_Malloc(sizeof(setup_parentchar_s) * newNestedChar->numClones, PU_STATIC, NULL);
 				newNestedChar->cloneIds[0] = i;
 			}
 			else //It is defined
@@ -450,7 +470,7 @@ void M_Character1PSelectInit(void)
 		}
 
 		// Otherwise just add it
-		struct setup_nestedchar* newNestedChar = malloc(sizeof(setup_nestedchar_s));
+		struct setup_parentchar* newNestedChar = malloc(sizeof(setup_parentchar_s));
 		newNestedChar->numClones = 0;
 		newNestedChar->cloneIds = NULL; //Nothing yet
 		setup_flatchargrid.skinList[i] = *newNestedChar;
@@ -482,6 +502,7 @@ void M_Character1PSelectInit(void)
 		setup_numfollowercategories++;
 	}
 
+	M_ResetDrawingList();
 	setup_page = 0;
 }
 
