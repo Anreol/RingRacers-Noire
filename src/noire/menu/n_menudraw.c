@@ -832,13 +832,7 @@ void M_DrawCharacter1PSelect(void)
 			else
 				colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
 
-			V_DrawMappedPatch(
-				basex + 82 + (i * 16) + quadx,
-				22 + (j * 16) + quady,
-				0,
-				faceprefix[skin][FACE_RANK],
-				colormap
-			);
+			V_DrawMappedPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
 
 			// draw dot if there are more alts behind there!
 			if (!forceskin && setup_page + 1 < setup_flatchargrid.skinList[index].numClones)

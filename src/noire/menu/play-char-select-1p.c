@@ -339,8 +339,7 @@ static void M_SetupMidGameGridPos(setup_player_t* p, UINT8 num)
 
 	if (!R_SkinUsable(g_localplayers[0], skinId, false))
 	{
-		skinId =
-			GetSkinNumClosestToStats(skins[skinId].kartspeed, skins[skinId].kartweight, skins[skinId].flags, false);
+		skinId = GetSkinNumClosestToStats(skins[skinId].kartspeed, skins[skinId].kartweight, skins[skinId].flags, false);
 	}
 
 	INT32 parentSkinId = skinId;
@@ -364,7 +363,6 @@ static void M_SetupMidGameGridPos(setup_player_t* p, UINT8 num)
 
 	p->clonenum = alt;
 	p->color = cv_playercolor[num].value;
-	return; // we're done here
 }
 
 /// Setup all the data that will be used in the character select
@@ -1446,8 +1444,7 @@ boolean M_Character1PSelectHandler(INT32 choice)
 		// Just makes it easier to access later
 		if (forceskin)
 		{
-			if (p->gridx != skins[cv_forceskin.value].kartspeed - 1 ||
-				p->gridy != skins[cv_forceskin.value].kartweight - 1)
+			if (p->gridx != skins[cv_forceskin.value].kartspeed - 1 || p->gridy != skins[cv_forceskin.value].kartweight - 1)
 				p->skin = -1;
 			else
 				p->skin = cv_forceskin.value;
@@ -1455,7 +1452,7 @@ boolean M_Character1PSelectHandler(INT32 choice)
 		else
 		{
 			UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-			p->skin = setup_flatchargrid.skinList[skinIndexInPos].cloneIds[p->clonenum];
+			p->skin = skinIndexInPos; //setup_flatchargrid.skinList[skinIndexInPos].cloneIds[p->clonenum];
 		}
 
 		if (playersChanged == true)
