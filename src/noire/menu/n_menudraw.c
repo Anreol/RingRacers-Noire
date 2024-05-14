@@ -27,7 +27,7 @@ static void M_DrawCharSelectCircle(setup_player_t *p, INT16 x, INT16 y)
 	switch (p->mdepth)
 	{
 		case CSSTEP_ALTS:
-			numoptions = setup_flatchargrid.skinList[skinIndexGivenPos].numClones;
+			numoptions = setup_flatchargrid.skinList[skinIndexGivenPos].isParent ? setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->numClones : 0;
 			break;
 		case CSSTEP_COLORS:
 		case CSSTEP_FOLLOWERCOLORS:
@@ -75,7 +75,7 @@ static void M_DrawCharSelectCircle(setup_player_t *p, INT16 x, INT16 y)
 					n += ((i+1)/2);
 				n = (n + numoptions) % numoptions;
 
-				skin = setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[n];
+				skin = setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[n]; //If we're here, is because it is a parent. So no need to check if this is valid or not.
 				patch = faceprefix[skin][FACE_RANK];
 				colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
 				radius = 24<<FRACBITS;
@@ -378,24 +378,17 @@ static boolean M_DrawFollowerSprite(INT16 x, INT16 y, INT32 num, boolean charfli
 	return true;
 }
 
-static void M_DrawCharSelectPreview(UINT8 num)
+//Character preview that is set up just for ONE PLAYER
+static void M_DrawCharSelectPreview()
 {
-	INT16 x = 11, y = 5;
-	char letter = 'A' + num;
-	setup_player_t *p = &setup_player[num];
-	boolean charflip = !!(num & 1);
-
-	if (num & 1)
-		x += 233;
-
-	if (num > 1)
-		y += 99;
+	INT16 x = 15, y = 50;
+	setup_player_t *p = &setup_player[0];
 
 	V_DrawScaledPatch(x, y+6, V_TRANSLUCENT, W_CachePatchName("PREVBACK", PU_CACHE));
 
 	if (p->mdepth >= CSSTEP_CHARS || p->mdepth == CSSTEP_ASKCHANGES)
 	{
-		M_DrawCharSelectSprite(num, x+32, y+75, charflip);
+		M_DrawCharSelectSprite(0, x+32, y+75, false);
 		M_DrawCharSelectCircle(p, x+32, y+64);
 	}
 
@@ -403,8 +396,6 @@ static void M_DrawCharSelectPreview(UINT8 num)
 	{
 		INT32 backx = x + ((num & 1) ? -1 : 11);
 		V_DrawScaledPatch(backx, y+2, 0, W_CachePatchName("FILEBACK", PU_CACHE));
-
-		V_DrawScaledPatch(x + ((num & 1) ? 44 : 0), y+2, 0, W_CachePatchName(va("CHARSEL%c", letter), PU_CACHE));
 
 		profile_t *pr = NULL;
 		if (p->mdepth > CSSTEP_PROFILE)
@@ -435,12 +426,7 @@ static void M_DrawCharSelectPreview(UINT8 num)
 	if (p->mdepth == CSSTEP_PROFILE)
 	{
 		INT16 px = x+12;
-		INT16 py = y+48 - p->profilen*12 +
-			Easing_OutSine(
-				M_DueFrac(p->profilen_slide.start, 5),
-				p->profilen_slide.dist*12,
-				0
-			);
+		INT16 py = y+48 - p->profilen*12 + Easing_OutSine(M_DueFrac(p->profilen_slide.start, 5), p->profilen_slide.dist*12, 0);
 		UINT8 maxp = PR_GetNumProfiles();
 
 		UINT8 i = 0;
@@ -548,16 +534,20 @@ static void M_DrawCharSelectPreview(UINT8 num)
 		{
 			case CSSTEP_ALTS: // Select clone
 			case CSSTEP_READY:
-				if (p->clonenum < setup_flatchargrid.skinList[skinIndexGivenPos].numClones
-					&& setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[p->clonenum] < numskins)
+				if (!setup_flatchargrid.skinList[skinIndexGivenPos].isParent)
 				{
-					V_DrawThinString(x-3, y+12, 0,
-						skins[setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[p->clonenum]].name);
-					randomskin = (skins[setup_flatchargrid.skinList[skinIndexGivenPos].cloneIds[p->clonenum]].flags & SF_IRONMAN);
-				}
-				else
-				{
-					V_DrawThinString(x-3, y+12, 0, va("BAD CLONENUM %u", p->clonenum));
+					if (p->clonenum < setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->numClones &&
+						setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[p->clonenum] < numskins)
+					{
+						V_DrawThinString(x - 3, y + 12, 0, skins[setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[p->clonenum]].name);
+						randomskin =
+							(skins[setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[p->clonenum]].flags &
+							 SF_IRONMAN);
+					}
+					else
+					{
+						V_DrawThinString(x - 3, y + 12, 0, va("BAD CLONENUM %u", p->clonenum));
+					}
 				}
 				/* FALLTHRU */
 			case CSSTEP_CHARS: // Character Select grid
@@ -835,7 +825,7 @@ void M_DrawCharacter1PSelect(void)
 			V_DrawMappedPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
 
 			// draw dot if there are more alts behind there!
-			if (!forceskin && setup_page + 1 < setup_flatchargrid.skinList[index].numClones)
+			if (!forceskin && !setup_flatchargrid.skinList[index].isParent && setup_page + 1 < setup_flatchargrid.skinList[index].uniondata.clones->numClones)
 				V_DrawScaledPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE) );
 		}
 	}
@@ -843,10 +833,11 @@ void M_DrawCharacter1PSelect(void)
 	// Explosions when you've made your final selection
 	M_DrawCharSelectExplosions(true, basex + 82, 22);
 
-	for (i = 0; i < MAXSPLITSCREENPLAYERS; i++)
+	i = 0;
+	//for (i = 0; i < 1; i++) //This is where we had the logic for drawing the rest of the players. Oh woops, its gone now. Sad!
 	{
-		// Draw a preview for each player
-		if (optionsmenu.profile == NULL)
+		//Check if we are not in the options menu
+		if (optionsmenu.profile == NULL) 
 		{
 			M_DrawCharSelectPreview(i);
 		}
@@ -855,8 +846,8 @@ void M_DrawCharacter1PSelect(void)
 			M_DrawProfileCard(optionsmenu.optx, optionsmenu.opty, false, optionsmenu.profile);
 		}
 
-		if (i >= setup_numplayers)
-			continue;
+		//if (i >= setup_numplayers)
+		//	continue;
 
 		// Draw the cursors
 		if (i != priority)

@@ -290,13 +290,13 @@ static void M_SetupProfileGridPos(setup_player_t* p)
 
 	INT32 parentSkinId = skinId;
 
-	// Is the grid currently collapsed?
-	if (setup_flatchargrid.isExtended == false)
+	// Check if the grid is collapsed and check if this skinId we found is truly a parent
+	if (setup_flatchargrid.isExtended == false && setup_flatchargrid.skinList[parentSkinId].isParent)
 	{
 		// If it is, we need to get the "depth" (child id) of it for p.clonenum
-		for (size_t y = 0; y < setup_flatchargrid.skinList[parentSkinId].numClones; y++)
+		for (size_t y = 0; y < setup_flatchargrid.skinList[parentSkinId].uniondata.clones->numClones; y++)
 		{
-			if (setup_flatchargrid.skinList[parentSkinId].cloneIds[y] == skinId)
+			if (setup_flatchargrid.skinList[parentSkinId].uniondata.clones->cloneIds[y] == skinId)
 			{
 				alt = y; // asign the depth
 				break;
@@ -344,13 +344,13 @@ static void M_SetupMidGameGridPos(setup_player_t* p, UINT8 num)
 
 	INT32 parentSkinId = skinId;
 
-	// Is the grid currently collapsed?
-	if (setup_flatchargrid.isExtended == false)
+	// Check if the grid is collapsed and check if this skinId we found is truly a parent
+	if (setup_flatchargrid.isExtended == false && setup_flatchargrid.skinList[parentSkinId].isParent)
 	{
 		// If it is, we need to get the "depth" (child id) of it for p.clonenum
-		for (size_t y = 0; y < setup_flatchargrid.skinList[parentSkinId].numClones; y++)
+		for (size_t y = 0; y < setup_flatchargrid.skinList[parentSkinId].uniondata.clones->numClones; y++)
 		{
-			if (setup_flatchargrid.skinList[parentSkinId].cloneIds[y] == skinId)
+			if (setup_flatchargrid.skinList[parentSkinId].uniondata.clones->cloneIds[y] == skinId)
 			{
 				alt = y; // asign the depth
 				break;
@@ -374,7 +374,7 @@ void M_Character1PSelectInit(void)
 	memset(&setup_flatchargrid, -1, sizeof(setup_flatchargrid_s));
 	setup_flatchargrid.sortingMode = 1;
 	setup_flatchargrid.isExtended = false;
-	setup_flatchargrid.skinList = Z_Malloc(sizeof(setup_parentchar_s) * numskins, PU_STATIC, NULL);
+	setup_flatchargrid.skinList = Z_Malloc(sizeof(setup_clonelist_s) * numskins, PU_STATIC, NULL);
 
 	memset(setup_player, 0, sizeof(setup_player));
 	setup_numplayers = 0;
@@ -438,6 +438,7 @@ void M_Character1PSelectInit(void)
 			if (parentNum == -1)
 				continue; // Doesn't match! Continue.
 
+			if(skins[parentNum].parentnames)
 			// Exit!
 			break;
 		}
@@ -447,31 +448,53 @@ void M_Character1PSelectInit(void)
 			// Check if the not defined yet, as its id might be ahead of us
 			if (&setup_flatchargrid.skinList[parentNum] == NULL)
 			{
-				struct setup_parentchar* newNestedChar = malloc(sizeof(setup_parentchar_s));
-				newNestedChar->numClones = 1;
-				newNestedChar->cloneIds = Z_Malloc(sizeof(setup_parentchar_s) * newNestedChar->numClones, PU_STATIC, NULL);
-				newNestedChar->cloneIds[0] = i;
+				//We need to look up that skin, to see if it is a parent or not..
 			}
-			else //It is defined
+			else //Parent is defined
 			{
-				setup_flatchargrid.skinList[parentNum].numClones++;
-				if (setup_flatchargrid.skinList[parentNum].cloneIds == NULL) {
-					setup_flatchargrid.skinList[parentNum].cloneIds = Z_Malloc(sizeof(UINT8), PU_STATIC, NULL);
-					setup_flatchargrid.skinList[parentNum].cloneIds[0] = i;
+				parentclone_u *parentclone = &setup_flatchargrid.skinList[parentNum].uniondata;
+				if(&parentclone->parentID != NULL) { //ParentID did get set, so this is a clone.
+					//Figure out how to access THAT parent's parentclone, and repeat that until we find a parent's parentclone that does have a *clones. This requires recursion...
+					continue;
 				}
-				else {
-					setup_flatchargrid.skinList[parentNum].cloneIds = Z_Realloc(setup_flatchargrid.skinList[parentNum].cloneIds, sizeof(UINT8) * (setup_flatchargrid.skinList[parentNum].numClones + 1), PU_STATIC, &i);
-					setup_flatchargrid.skinList[parentNum].cloneIds[setup_flatchargrid.skinList[parentNum].numClones - 1] = i;
+
+				if (&parentclone->clones == NULL) { //This is a parent, but its clones didn't get alloc yet
+					parentclone->clones = Z_Malloc(sizeof(setup_clonelist_s), PU_STATIC, NULL);
+					parentclone->clones->numClones++;
+					parentclone->clones->cloneIds = Z_Malloc(sizeof(UINT8), PU_STATIC, NULL);
+					parentclone->clones->cloneIds[0] = i;
+				} else {
+					parentclone->clones->numClones++;
+					UINT8 *clones = parentclone->clones->cloneIds;
+					clones = Z_Realloc(clones, sizeof(UINT8) * (parentclone->clones->numClones + 1), PU_STATIC, &i);
+					clones[parentclone->clones->numClones - 1] = i;
 				}
+				//After that, we need to make sure this gets added to the array as a clone.
+				parentclone_u *newUnion = malloc(sizeof(parentclone_u));
+				newUnion->parentID = i;
+
+				parentorclone_s *clone = malloc(sizeof(parentorclone_s));
+				clone->uniondata = *newUnion;
+				clone->isParent = false;
+
+				setup_flatchargrid.skinList[i] = *clone;
 			}
 			continue;
 		}
 
-		// Otherwise just add it
-		struct setup_parentchar* newNestedChar = malloc(sizeof(setup_parentchar_s));
-		newNestedChar->numClones = 0;
-		newNestedChar->cloneIds = NULL; //Nothing yet
-		setup_flatchargrid.skinList[i] = *newNestedChar;
+		// Otherwise this is a parent.
+		setup_clonelist_s *newCloneList = malloc(sizeof(setup_clonelist_s));
+		newCloneList->numClones = 0;
+		newCloneList->cloneIds = NULL; //Nothing yet
+
+		parentclone_u *newUnion = malloc(sizeof(parentclone_u));
+		newUnion->clones = newCloneList;
+
+		parentorclone_s *parent = malloc(sizeof(parentorclone_s));
+		parent->uniondata = *newUnion;
+		parent->isParent = true;
+
+		setup_flatchargrid.skinList[i] = *parent;
 	}
 
 	setup_numfollowercategories = 0;
@@ -846,7 +869,7 @@ boolean M_CharacterSelectForceInAction(void)
 static void M_HandleBackToChars(setup_player_t* p)
 {
 	boolean forceskin = M_CharacterSelectForceInAction();
-	if (forceskin || setup_flatchargrid.skinList[p->skin].numClones == 0)
+	if (forceskin || !setup_flatchargrid.skinList[p->skin].isParent)
 	{
 		p->mdepth = CSSTEP_CHARS; // Skip clones menu
 		return;
@@ -949,7 +972,7 @@ static boolean M_HandleCharacterGrid(setup_player_t* p, UINT8 num)
 	// Process this after possible pad movement,
 	// this makes sure we don't have a weird ghost hover on a character with no clones.
 	UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-	numclones = setup_flatchargrid.skinList[skinIndexInPos].numClones;
+	numclones = setup_flatchargrid.skinList[skinIndexInPos].isParent ? setup_flatchargrid.skinList[skinIndexInPos].uniondata.clones->numClones : 0;
 
 	if (p->clonenum >= numclones)
 		p->clonenum = 0;
@@ -1035,7 +1058,7 @@ static boolean M_HandleCharacterGrid(setup_player_t* p, UINT8 num)
 static void M_HandleCharRotate(setup_player_t* p, UINT8 num)
 {
 	UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-	UINT8 numclones = setup_flatchargrid.skinList[skinIndexInPos].numClones;
+	UINT8 numclones = setup_flatchargrid.skinList[skinIndexInPos].isParent ? setup_flatchargrid.skinList[skinIndexInPos].uniondata.clones->numClones : 0;
 
 	if (cv_splitdevice.value)
 		num = 0;
@@ -1361,6 +1384,7 @@ static void M_HandleFollowerColorRotate(setup_player_t* p, UINT8 num)
 	}
 }
 
+// Handler of steps. This handles all 4 players, I couldn't see a reason to remove that unless player 1 handling broke
 boolean M_Character1PSelectHandler(INT32 choice)
 {
 	INT32 i;

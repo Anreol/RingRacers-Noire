@@ -71,20 +71,25 @@ typedef enum setup_sortMode {
     ENGINECLASS
 } setup_sortMode_e;
 
-typedef struct setup_parentchar {
-    UINT8 numClones; // Amount of items in cloneIds
-    UINT8 *cloneIds; //Skin IDs that will be hold in this instance. Needs to be dynamically allocated!
-} setup_parentchar_s;
+typedef struct setup_clonelist {
+    UINT8 numClones;                    // Amount of items in cloneIds
+    UINT8 *cloneIds;                    //Skin IDs that will be hold in this instance. Needs to be dynamically allocated!
+} setup_clonelist_s;
 
 typedef union parentclone {
-    setup_parentchar_s *clones; //Only used if this is a parent
-    UINT8 parentID;             //Only used if this is a clone
+    setup_clonelist_s *clones;         //Only used if this is a parent
+    UINT8 parentID;                     //Only used if this is a clone
 } parentclone_u;
+
+typedef struct parentorclone {
+    boolean isParent;
+    parentclone_u uniondata;
+} parentorclone_s;
 
 typedef struct setup_flatchargrid_t {
     setup_sortMode_e sortingMode; 		// How we are currently sorting
 	boolean isExtended; 				// Is SkinList expanded right now or not, showing clones as individual items outside of their parents.
-    parentclone_u *skinList;            // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL NOT CONTAIN UNUSABLE SKINS
+    parentorclone_s *skinList;            // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL NOT CONTAIN UNUSABLE SKINS
 	UINT8 *drawingList;					// List of skinList indexes that we will draw. This will be resized and shuffled and whatever.
     UINT8 drawingListCount;
 } setup_flatchargrid_s;
