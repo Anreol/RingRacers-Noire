@@ -20,7 +20,6 @@
 #include "../../r_skins.h"
 #include "../../s_sound.h"
 #include "../../z_zone.h"
-#include "../n_func.h"
 #include "../n_menu.h"
 
 

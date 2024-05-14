@@ -7,7 +7,7 @@
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
 
-#include "n_cvar.h"
+#include "../n_cvar.h"
 #include "../z_zone.h"
 #include "../n_control.h"
 

@@ -17,6 +17,8 @@
 // PLAY MENUS
 //
 
+#define CHARSEL_GRID_XOFFSET 64;
+
 static void M_DrawCharSelectCircle(setup_player_t *p, INT16 x, INT16 y)
 {
 	angle_t angamt = ANGLE_MAX;
@@ -594,6 +596,9 @@ static void M_DrawCharSelectCursor(UINT8 num)
 	// profiles skew the graphic to the right slightly
 	if (optionsmenu.profile)
 		x += 64;
+	else {
+		x += CHARSEL_GRID_XOFFSET;
+	}
 
 	color = p->color;
 	if (color == SKINCOLOR_NONE)
@@ -637,16 +642,10 @@ void M_DrawCharacter1PSelect(void)
 	const UINT8 pid = 0;
 
 	UINT8 i, j, k;
-	UINT8 priority = 0;
 	INT16 quadx, quady;
 	INT16 skin;
-	INT32 basex = optionsmenu.profile ? (64 + M_EaseWithTransition(Easing_InSine, 5 * 48)) : 0;
+	INT32 basex = optionsmenu.profile ? (64 + M_EaseWithTransition(Easing_InSine, 5 * 48)) : 0 + CHARSEL_GRID_XOFFSET;
 	boolean forceskin = M_CharacterSelectForceInAction();
-
-	if (setup_numplayers > 0)
-	{
-		priority = setup_animcounter % setup_numplayers;
-	}
 
 	{
 		const int kLeft = 76;
@@ -667,8 +666,8 @@ void M_DrawCharacter1PSelect(void)
 			V_DrawThinString((x += kButtonWidth), kTop, 0, "Colors & Search");
 		}
 		else {
-			//Else hint the player to select a profile
-			V_DrawThinString(x, kTop, 0, "Select a profile");
+			//Else hint the player to select a profile. X + 55 to center it. Couldn't bother wasting time to figure out the math being done here to properly center it!
+			V_DrawThinString(x + 55, kTop, 0, "Select a profile");
 		}
 	}
 	#if 0
@@ -763,13 +762,6 @@ void M_DrawCharacter1PSelect(void)
 		//	continue;
 
 		// Draw the cursors
-		if (i != priority)
-			M_DrawCharSelectCursor(i);
-	}
-
-	if (setup_numplayers > 0)
-	{
-		// Draw the priority player over the other ones
-		M_DrawCharSelectCursor(priority);
+		M_DrawCharSelectCursor(i);
 	}
 }
