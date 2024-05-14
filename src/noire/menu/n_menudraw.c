@@ -304,8 +304,7 @@ static void M_DrawCharSelectSprite(UINT8 num, INT16 x, INT16 y, boolean charflip
 
 	colormap = R_GetTranslationColormap(p->skin, color, GTC_MENUCACHE);
 
-	M_DrawCharacterSprite(x, y, p->skin, SPR2_STIN, (charflip ? 1 : 7), ((p->mdepth == CSSTEP_READY) ? setup_animcounter : 0),
-		p->mdepth == CSSTEP_ASKCHANGES ? V_TRANSLUCENT : 0, colormap);
+	M_DrawCharacterSprite(x, y, p->skin, SPR2_STIN, (charflip ? 1 : 7), ((p->mdepth == CSSTEP_READY) ? setup_animcounter : 0), p->mdepth == CSSTEP_ASKCHANGES ? V_TRANSLUCENT : 0, colormap);
 }
 
 // Returns false is the follower shouldn't be rendered.
@@ -383,26 +382,29 @@ static void M_DrawCharSelectPreview()
 {
 	INT16 x = 15, y = 50;
 	setup_player_t *p = &setup_player[0];
+	const boolean charflip = false;
+	const UINT8 num = 1;
 
 	V_DrawScaledPatch(x, y+6, V_TRANSLUCENT, W_CachePatchName("PREVBACK", PU_CACHE));
 
-	if (p->mdepth >= CSSTEP_CHARS || p->mdepth == CSSTEP_ASKCHANGES)
+	//Draw the profile thing
+	INT32 backx = x + ((num & 1) ? -1 : 11);
+	V_DrawScaledPatch(backx, y+2, 0, W_CachePatchName("FILEBACK", PU_CACHE));
+
+	profile_t *pr = NULL;
+	if (p->mdepth > CSSTEP_PROFILE)
 	{
-		M_DrawCharSelectSprite(0, x+32, y+75, false);
-		M_DrawCharSelectCircle(p, x+32, y+64);
+		pr = PR_GetProfile(p->profilen);
 	}
+	V_DrawCenteredFileString(backx+26, y+2, 0, pr ? pr->profilename : "SELECT"); //Originally was just "PLAYER", the fuck do you mean "PLAYER"? What am I supposed TO DO?
+	
 
-	if (p->showextra == false)
+	//i wanted to always draw it (Draw it in the profile selection step...) but by then the player profile isn't assigned yet and eggman or the last skin selected appears instead of the profile you're hovering over...  i'd rather not touch it
+	//Also unlike the original code this is AFTER the profile name banner because otherwise that would draw above the CHARACTER YOU WANT TO PLAY AS which is STINKY and I DO NOT LIKE
+	if (p->mdepth >= CSSTEP_CHARS || p->mdepth == CSSTEP_ASKCHANGES) 
 	{
-		INT32 backx = x + ((num & 1) ? -1 : 11);
-		V_DrawScaledPatch(backx, y+2, 0, W_CachePatchName("FILEBACK", PU_CACHE));
-
-		profile_t *pr = NULL;
-		if (p->mdepth > CSSTEP_PROFILE)
-		{
-			pr = PR_GetProfile(p->profilen);
-		}
-		V_DrawCenteredFileString(backx+26, y+2, 0, pr ? pr->profilename : "PLAYER");
+		M_DrawCharSelectSprite(0, x+32, y+75, charflip);
+		M_DrawCharSelectCircle(p, x+32, y+64);
 	}
 
 	if (p->mdepth >= CSSTEP_FOLLOWER || p->mdepth == CSSTEP_ASKCHANGES)
@@ -410,6 +412,8 @@ static void M_DrawCharSelectPreview()
 		M_DrawFollowerSprite(x+32+((charflip ? 1 : -1)*16), y+75, -1, charflip, p->mdepth == CSSTEP_ASKCHANGES ? V_TRANSLUCENT : 0, NULL, p);
 	}
 
+	//I have absolutely no fucking idea what this does other than making something blink so just disable it?
+	#if 0
 	if ((setup_animcounter/10) & 1)
 	{
 		if (p->mdepth == CSSTEP_NONE && num == setup_numplayers && gamestate == GS_MENU)
@@ -421,11 +425,12 @@ static void M_DrawCharSelectPreview()
 			V_DrawScaledPatch(x+1, y+36, 0, W_CachePatchName("4PREADY", PU_CACHE));
 		}
 	}
+	#endif
 
 	// Profile selection
 	if (p->mdepth == CSSTEP_PROFILE)
 	{
-		INT16 px = x+12;
+		INT16 px = x + 8; //Originally +12, selected this number so it appears centered
 		INT16 py = y+48 - p->profilen*12 + Easing_OutSine(M_DueFrac(p->profilen_slide.start, 5), p->profilen_slide.dist*12, 0);
 		UINT8 maxp = PR_GetNumProfiles();
 
@@ -479,26 +484,9 @@ static void M_DrawCharSelectPreview()
 				{
 					const char *txt = pr->version ? pr->profilename : "NEW";
 
-					fixed_t w = V_StringScaledWidth(
-						FRACUNIT,
-						FRACUNIT,
-						FRACUNIT,
-						notSelectable,
-						FILE_FONT,
-						txt
-					);
+					fixed_t w = V_StringScaledWidth(FRACUNIT,FRACUNIT,FRACUNIT,notSelectable,FILE_FONT,txt);
 
-					V_DrawStringScaled(
-						((px+26) * FRACUNIT) - (w/2),
-						py * FRACUNIT,
-						FRACUNIT,
-						FRACUNIT,
-						FRACUNIT,
-						notSelectable,
-						i == p->profilen ? R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_SAPPHIRE, GTC_CACHE) : NULL,
-						FILE_FONT,
-						txt
-					);
+					V_DrawStringScaled(((px+26) * FRACUNIT) - (w/2), py * FRACUNIT, FRACUNIT, FRACUNIT, FRACUNIT, notSelectable, i == p->profilen ? R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_SAPPHIRE, GTC_CACHE) : NULL, FILE_FONT, txt);
 				}
 			}
 			py += 12;
@@ -529,90 +517,7 @@ static void M_DrawCharSelectPreview()
 	UINT8 skinIndexGivenPos = M_GetSkinIndexGivenPos(p);
 	if (p->showextra == true)
 	{
-		INT32 randomskin = 0;
-		switch (p->mdepth)
-		{
-			case CSSTEP_ALTS: // Select clone
-			case CSSTEP_READY:
-				if (!setup_flatchargrid.skinList[skinIndexGivenPos].isParent)
-				{
-					if (p->clonenum < setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->numClones &&
-						setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[p->clonenum] < numskins)
-					{
-						V_DrawThinString(x - 3, y + 12, 0, skins[setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[p->clonenum]].name);
-						randomskin =
-							(skins[setup_flatchargrid.skinList[skinIndexGivenPos].uniondata.clones->cloneIds[p->clonenum]].flags &
-							 SF_IRONMAN);
-					}
-					else
-					{
-						V_DrawThinString(x - 3, y + 12, 0, va("BAD CLONENUM %u", p->clonenum));
-					}
-				}
-				/* FALLTHRU */
-			case CSSTEP_CHARS: // Character Select grid
-				V_DrawThinString(x-3, y+2, 0, va("Class %c (s %c - w %c)",
-					('A' + R_GetEngineClass(p->gridx+1, p->gridy+1, randomskin)),
-					(randomskin
-						? '?' : ('1'+p->gridx)),
-					(randomskin
-						? '?' : ('1'+p->gridy))
-					));
-				break;
-			case CSSTEP_COLORS: // Select color
-				if (p->color < numskincolors)
-				{
-					V_DrawThinString(x-3, y+2, 0, skincolors[p->color].name);
-				}
-				else
-				{
-					V_DrawThinString(x-3, y+2, 0, va("BAD COLOR %u", p->color));
-				}
-				break;
-			case CSSTEP_FOLLOWERCATEGORY:
-				if (p->followercategory == -1)
-				{
-					V_DrawThinString(x-3, y+2, 0, "None");
-				}
-				else
-				{
-					V_DrawThinString(x-3, y+2, 0,
-						followercategories[setup_followercategories[p->followercategory][1]].name);
-				}
-				break;
-			case CSSTEP_FOLLOWER:
-				if (p->followern == -1)
-				{
-					V_DrawThinString(x-3, y+2, 0, "None");
-				}
-				else
-				{
-					V_DrawThinString(x-3, y+2, 0,
-						followers[p->followern].name);
-				}
-				break;
-			case CSSTEP_FOLLOWERCOLORS:
-				if (p->followercolor == FOLLOWERCOLOR_MATCH)
-				{
-					V_DrawThinString(x-3, y+2, 0, "Match");
-				}
-				else if (p->followercolor == FOLLOWERCOLOR_OPPOSITE)
-				{
-					V_DrawThinString(x-3, y+2, 0, "Opposite");
-				}
-				else if (p->followercolor < numskincolors)
-				{
-					V_DrawThinString(x-3, y+2, 0, skincolors[p->followercolor].name);
-				}
-				else
-				{
-					V_DrawThinString(x-3, y+2, 0, va("BAD FOLLOWERCOLOR %u", p->followercolor));
-				}
-				break;
-			default:
-				V_DrawThinString(x-3, y+2, 0, "[extrainfo mode]");
-				break;
-		}
+		//Do the color drawer shit here...
 	}
 }
 
@@ -749,14 +654,22 @@ void M_DrawCharacter1PSelect(void)
 		const int kButtonWidth = 16;
 		INT32 x = basex + kLeft;
 
-		if (!optionsmenu.profile) // Does nothing on this screen
-		{
+		//We are past the profile selection
+		if(setup_player[k].mdepth > CSSTEP_PROFILE) {
 			K_drawButton((x += 22) * FRACUNIT, (kTop - 3) * FRACUNIT, 0, kp_button_r, M_MenuButtonPressed(pid, MBT_R));
-			V_DrawThinString((x += kButtonWidth), kTop, 0, "Info");
-		}
+			if(setup_player[k].mdepth == CSSTEP_CHARS)
+				V_DrawThinString((x += kButtonWidth), kTop, 0, "Followers");
+			else if (setup_player[k].mdepth == CSSTEP_FOLLOWER)
+				V_DrawThinString((x += kButtonWidth), kTop, 0, "Characters");
+			
 
-		K_drawButton((x += 58) * FRACUNIT, (kTop - 1) * FRACUNIT, 0, kp_button_c[1], M_MenuButtonPressed(pid, MBT_C));
-		V_DrawThinString((x += kButtonWidth), kTop, 0, "Default");
+			K_drawButton((x += 58) * FRACUNIT, (kTop - 1) * FRACUNIT, 0, kp_button_c[1], M_MenuButtonPressed(pid, MBT_C));
+			V_DrawThinString((x += kButtonWidth), kTop, 0, "Colors & Search");
+		}
+		else {
+			//Else hint the player to select a profile
+			V_DrawThinString(x, kTop, 0, "Select a profile");
+		}
 	}
 	#if 0
 	// We have to loop twice -- first time to draw the drop shadows, a second time to draw the icons.
@@ -787,7 +700,7 @@ void M_DrawCharacter1PSelect(void)
 	}
 	#endif
 	// Draw this inbetween. These drop shadows should be covered by the stat graph, but the icons shouldn't.
-	V_DrawScaledPatch(basex+ 3, 2, 0, W_CachePatchName((optionsmenu.profile ? "PR_STGRPH" : "STATGRPH"), PU_CACHE));
+	V_DrawScaledPatch(basex+ 3, 2, 0, W_CachePatchName(("PR_STGRPH"), PU_CACHE));
 
 	// Draw the icons now
 	UINT8 numRows = (setup_flatchargrid.drawingListCount + CHARSEL_MAX_COLUMNS - 1) / CHARSEL_MAX_COLUMNS; // Calculate the number of rows

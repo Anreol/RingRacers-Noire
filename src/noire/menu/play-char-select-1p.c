@@ -576,6 +576,7 @@ static boolean M_DeviceAvailable(INT32 deviceID, UINT8 numPlayers)
 	return true;
 }
 
+// TODO: Nuke this shit. If we detect a new player, move to the vanilla character selection screen
 static boolean M_HandlePressStart(setup_player_t* p, UINT8 num)
 {
 	INT32 i, j;
