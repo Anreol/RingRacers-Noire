@@ -7,9 +7,9 @@
 // See the 'LICENSE' file for more details.
 //-----------------------------------------------------------------------------
 
-#include "n_func.h"
 #include "n_cvar.h"
 #include "../z_zone.h"
+#include "../n_control.h"
 
 // Old update Player angle taken from old kart commits
 void N_UpdatePlayerAngle(player_t* player)
@@ -346,130 +346,53 @@ void N_DoPogoSpring(mobj_t* mo, fixed_t vertispeed, UINT8 sound)
 		S_StartSound(mo, (sound == 1 ? sfx_kc2f : sfx_kpogos));
 }*/
 
-// K_KartUpdatePosition
-//
-void K_KartLegacyUpdatePosition(player_t *player)
+void N_PogoSidemove(player_t *player)
 {
-	fixed_t position = 1;
-	fixed_t oldposition = player->position;
-	fixed_t i, ppcd, pncd, ipcd, incd;
-	fixed_t pmo, imo;
-	mobj_t *mo;
+	fixed_t movepushside = 0;
+	angle_t movepushangle = 0, movepushsideangle = 0;
+	fixed_t sidemove[2] = {2<<FRACBITS>>16, 4<<FRACBITS>>16};
+	fixed_t side = 0;
 
-	if (player->spectator || !player->mo)
+	if (!player->pogoSpringJumped)
 		return;
 
-	for (i = 0; i < MAXPLAYERS; i++)
+	if (player->drift != 0)
+		movepushangle = player->mo->angle-(ANGLE_45/5)*player->drift;
+	else
+		movepushangle = player->mo->angle;
+
+	movepushsideangle = movepushangle-ANGLE_90;
+
+	// let movement keys cancel each other out
+	if (player->cmd.turning < 0)
+	{;
+		side += sidemove[1];
+	}
+	else if (player->cmd.turning > 0 )
 	{
-		if (!playeringame[i] || players[i].spectator || !players[i].mo)
-			continue;
-
-		//if (G_RaceGametype())
-		{
-			if ((((players[i].cheatchecknum) + (numcheatchecks + 1) * players[i].laps) >
-				((player->cheatchecknum) + (numcheatchecks + 1) * player->laps)))
-				position++;
-			else if (((players[i].cheatchecknum) + (numcheatchecks+1)*players[i].laps) ==
-				((player->cheatchecknum) + (numcheatchecks+1)*player->laps))
-			{
-				ppcd = pncd = ipcd = incd = 0;
-
-				player->prevcheck = players[i].prevcheck = 0;
-				player->nextcheck = players[i].nextcheck = 0;
-
-				// This checks every thing on the map, and looks for MT_BOSS3WAYPOINT (the thing we're using for checkpoint wp's, for now)
-				for (mo = waypointcap; mo != NULL; mo = mo->tracer)
-				{
-					pmo = P_AproxDistance(P_AproxDistance(	mo->x - player->mo->x,
-															mo->y - player->mo->y),
-															mo->z - player->mo->z) / FRACUNIT;
-					imo = P_AproxDistance(P_AproxDistance(	mo->x - players[i].mo->x,
-															mo->y - players[i].mo->y),
-															mo->z - players[i].mo->z) / FRACUNIT;
-
-					if (mo->health == player->cheatchecknum && (!mo->movecount || mo->movecount == player->laps+1))
-					{
-						player->prevcheck += pmo;
-						ppcd++;
-					}
-					if (mo->health == (player->cheatchecknum + 1) && (!mo->movecount || mo->movecount == player->laps+1))
-					{
-						player->nextcheck += pmo;
-						pncd++;
-					}
-					if (mo->health == players[i].cheatchecknum && (!mo->movecount || mo->movecount == players[i].laps+1))
-					{
-						players[i].prevcheck += imo;
-						ipcd++;
-					}
-					if (mo->health == (players[i].cheatchecknum + 1) && (!mo->movecount || mo->movecount == players[i].laps+1))
-					{
-						players[i].nextcheck += imo;
-						incd++;
-					}
-				}
-
-				if (ppcd > 1) player->prevcheck /= ppcd;
-				if (pncd > 1) player->nextcheck /= pncd;
-				if (ipcd > 1) players[i].prevcheck /= ipcd;
-				if (incd > 1) players[i].nextcheck /= incd;
-
-				if ((players[i].nextcheck > 0 || player->nextcheck > 0) && !player->exiting)
-				{
-					if ((players[i].nextcheck - players[i].prevcheck) <
-						(player->nextcheck - player->prevcheck))
-						position++;
-				}
-				else if (!player->exiting)
-				{
-					if (players[i].prevcheck > player->prevcheck)
-						position++;
-				}
-				else
-				{
-					if (players[i].cheatchecktime < player->cheatchecktime)
-						position++;
-				}
-			}
-		}
-		/*else if (G_BattleGametype())
-		{
-			if (player->exiting) // Ends of match standings
-			{
-				if (players[i].marescore > player->marescore) // Only score matters
-					position++;
-			}
-			else
-			{
-				if (players[i].kartstuff[k_bumper] == player->kartstuff[k_bumper] && players[i].marescore > player->marescore)
-					position++;
-				else if (players[i].kartstuff[k_bumper] > player->kartstuff[k_bumper])
-					position++;
-			}
-		}*/
+		side -= sidemove[1];
 	}
 
-	if (leveltime < starttime || oldposition == 0)
-		oldposition = position;
+	if (side > MAXPLMOVE)
+		side = MAXPLMOVE;
+	else if (side < -MAXPLMOVE)
+		side = -MAXPLMOVE;
 
-	if (oldposition != position) // Changed places?
-		player->positiondelay = 10; // Position number growth
+	if (side !=0 && (!player->pogoSpringJumped))
+		side = 0;
 
-	player->position = position;
-}
-
-mobj_t *P_GetObjectTypeInSectorNum(mobjtype_t type, size_t s)
-{
-	sector_t *sec = sectors + s;
-	mobj_t *thing = sec->thinglist;
-
-	while (thing)
+	// Sideways movement
+	if (side != 0 && !((player->exiting || mapreset)))
 	{
-		if (thing->type == type)
-			return thing;
-		thing = thing->snext;
+		if (side > 0)
+			movepushside = (side * FRACUNIT/128) + FixedDiv(player->speed, K_GetKartSpeed(player, true, false));
+		else
+			movepushside = (side * FRACUNIT/128) - FixedDiv(player->speed, K_GetKartSpeed(player, true, false));
+
+		player->mo->momx += P_ReturnThrustX(player->mo, movepushsideangle, movepushside);
+		player->mo->momy += P_ReturnThrustY(player->mo, movepushsideangle, movepushside);
 	}
-	return NULL;
+
 }
 
 // Function to add an element to an array dynamically

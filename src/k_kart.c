@@ -27,7 +27,6 @@
 #include "g_game.h"
 #include "g_input.h"    // for device rumble
 #include "m_random.h"
-#include "noire/n_func.h"
 #include "p_local.h"
 #include "p_mobj.h"
 #include "p_slopes.h"
@@ -68,8 +67,11 @@
 #include "k_endcam.h"
 
 // Noire
+#include "noire/n_control.h"
+#include "noire/n_legacycheckpoint.h"
 #include "noire/n_cvar.h"
 #include "noire/n_object.h"
+#include "noire/n_boosts.h"
 
 // SOME IMPORTANT VARIABLES DEFINED IN DOOMDEF.H:
 // gamespeed is cc (0 for easy, 1 for normal, 2 for hard)
@@ -3701,6 +3703,7 @@ fixed_t K_GetKartSpeed(const player_t *player, boolean doboostpower, boolean dor
 	}
 	else
 	{
+
 		finalspeed = K_GetKartSpeedFromStat(player->kartspeed);
 
 		if (player->spheres > 0)
@@ -9549,6 +9552,8 @@ void K_KartPlayerThink(player_t *player, ticcmd_t *cmd)
 		}
 	}
 
+	N_PogoSidemove(player);
+
 	//NOIRE Springs: Pogo stuff put in the same place as in the original code (after eggman stuff)
 	if (P_IsObjectOnGround(player->mo) && player->pogoSpringJumped)
 	{
@@ -14581,6 +14586,8 @@ boolean K_Cooperative(void)
 
 void K_SetTireGrease(player_t *player, tic_t tics)
 {
+	if (player->pogoSpringJumped)
+		return;
 	if (!player->tiregrease)
 	{
 		UINT8 i;

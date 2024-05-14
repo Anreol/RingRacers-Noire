@@ -20,7 +20,6 @@
 #include "d_event.h"
 #include "d_net.h"
 #include "g_game.h"
-#include "noire/n_func.h"
 #include "p_local.h"
 #include "r_fps.h"
 #include "r_main.h"
@@ -77,7 +76,7 @@
 
 // Noire
 #include "noire/n_cvar.h"
-#include "noire/n_func.h"
+#include "noire/n_control.h"
 
 #ifdef HWRENDER
 #include "hardware/hw_light.h"
@@ -750,6 +749,9 @@ void P_InvincGrowMusic(void)
 	INT32 grow = 0;
 
 	UINT8 i;
+	
+	if (!cv_specialmusic.value)
+		return;
 
 	for (i = 0; i <= r_splitscreen; ++i)
 	{

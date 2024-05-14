@@ -95,6 +95,9 @@ menuitem_t OPTIONS_NoireGameplayMechanics[] =
 	{IT_STRING | IT_SUBMENU, "Spindash Options...", "Adjust the functionality of the spindash.",
 		NULL, {.submenu = &OPTIONS_NoireGameplaySpindashDef}, 0, 0},
 
+	{IT_STRING | IT_SUBMENU, "Life Options...", "Adjust the behavior of the lives system.",
+		NULL, {.submenu = &OPTIONS_NoireGameplayLivesDef}, 0, 0},
+
 	{IT_NOTHING|IT_SPACE, NULL, NULL,
 		NULL, {NULL}, 0, 0},
 
@@ -179,8 +182,8 @@ menuitem_t OPTIONS_NoireGameplayDriving[] =
 	{IT_STRING | IT_CVAR, "No Physics Flag SLope Launch", "Consider the 'No Physics' flag on slopes, launching racers or not.",
 		NULL, {.cvar = &cv_ng_nophysicsflag}, 0, 0},
 
-	{IT_STRING | IT_CVAR, "Old Pogo Override", "Should flat spring objects/panels act like SRB2Kart pogo springs?",
-		NULL, {.cvar = &cv_ng_oldpogooverride}, 0, 0},
+	/*{IT_STRING | IT_CVAR, "Old Pogo Override", "Should flat spring objects/panels act like SRB2Kart pogo springs?",
+		NULL, {.cvar = &cv_ng_oldpogooverride}, 0, 0},*/ // TODO: Fix this, its currently broken but the pogo springs terrain is fine?
 };
 
 ///////////
@@ -217,6 +220,18 @@ menuitem_t OPTIONS_NoireGameplayRivals[] =
 
 	{IT_STRING | IT_CVAR, "2x Draft Power", "Should the rival pull ahead at double speed?",
 		NULL, {.cvar = &cv_ng_rivaldraft}, 0, 0},
+};
+
+///////////
+// LIVES
+///////////
+menuitem_t OPTIONS_NoireGameplayLives[] =
+{
+	{IT_STRING | IT_CVAR, "Lives", "Enable or disable the lives system in supported gamemodes.",
+		NULL, {.cvar = &cv_ng_lives}, 0, 0},
+
+	{IT_STRING | IT_CVAR, "Continues Affecting Rank", "Should lives/retries effect the end rank of a GP?",
+		NULL, {.cvar = &cv_ng_continuesrank}, 0, 0},
 };
 
 void NG_Generic_OnChange(void)
@@ -271,6 +286,18 @@ void NG_Rings_OnChange(void)
 		{
 			OPTIONS_NoireGameplayRings[i].status = IT_GRAYEDOUT;
 		}
+	}
+}
+
+void NG_Lives_OnChange(void)
+{
+	if (con_startup) return;
+
+	for (int i = 1; i < OPTIONS_NoireGameplayLivesDef.numitems; i++)
+	{
+		OPTIONS_NoireGameplayLives[i].status = cv_ng_lives.value
+			? (IT_STRING | IT_CVAR)
+			: IT_GRAYEDOUT;
 	}
 }
 
@@ -422,6 +449,24 @@ menu_t OPTIONS_NoireGameplaySpindashDef = {
 	&OPTIONS_NoireGameplayMechanicsDef,
 	0,
 	OPTIONS_NoireGameplaySpindash,
+	48, 80,
+	SKINCOLOR_BLACK, 0,
+	MBF_DRAWBGWHILEPLAYING,
+	NULL,
+	2, 5,
+	M_DrawGenericOptions,
+	M_DrawOptionsCogs,
+	M_OptionsTick,
+	NULL,
+	NULL,
+	NULL,
+};
+
+menu_t OPTIONS_NoireGameplayLivesDef = {
+	sizeof (OPTIONS_NoireGameplayLives) / sizeof (menuitem_t),
+	&OPTIONS_NoireGameplayMechanicsDef,
+	0,
+	OPTIONS_NoireGameplayLives,
 	48, 80,
 	SKINCOLOR_BLACK, 0,
 	MBF_DRAWBGWHILEPLAYING,
