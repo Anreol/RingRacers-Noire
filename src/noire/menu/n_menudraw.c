@@ -522,21 +522,37 @@ static void M_DrawCharSelectPreview()
 }
 
 static void M_DrawCharSelectInformation() {
+	//We'll be accessing these a lot
 	setup_player_t *p = &setup_player[0];
+	const UINT16 *skin = &p->skin;
+	const boolean ironman = skins[*skin].flags & SF_IRONMAN;
+
 	INT16 x = 15, y = 135;
 	const UINT8 ySpacing = 10;
 	const UINT8 iconSpacing = 12;
-	//Charname
-	V_DrawCenteredFileString(x+34, y, 0, skins[p->skin].realname);
-	
-	//Stats
-	x += 8;
-	y += 5;
-	V_DrawScaledPatch(x, ((y += ySpacing) - 1), 0, W_CachePatchName("CHSELSPD", PU_CACHE));
-	V_DrawThinString((x += iconSpacing), (y), 0, va("%d S", skins[p->skin].kartspeed));
 
-	V_DrawScaledPatch((x += 16), ((y) - 1), 0, W_CachePatchName("CHSELWEI", PU_CACHE));
-	V_DrawThinString((x + iconSpacing), (y), 0, va("%d W", skins[p->skin].kartweight));
+	//Charname
+	V_DrawCenteredFileString(x+34, y, 0, skins[*skin].realname);
+	
+	//Add some padding
+	x += 4;
+	y += 14;
+
+	// Char icon
+	UINT8*colormap = R_GetTranslationColormap(*skin, skins[*skin].prefcolor, GTC_MENUCACHE);
+	V_DrawMappedPatch(x, y, 0, faceprefix[*skin][FACE_WANTED], colormap);
+	
+	// Stats
+	const UINT8 speed = skins[*skin].kartspeed;
+	const UINT8 weight = skins[*skin].kartweight;
+
+	V_DrawThinString((x += 37), (y += 1), 0, va("Class %c", ('A' + R_GetEngineClass(speed, weight, ironman)))); //funny classes thing that v2 has
+
+	V_DrawScaledPatch((x), ((y += ySpacing) - 1), 0, W_CachePatchName("CHSELSPD", PU_CACHE));
+	V_DrawThinString((x + iconSpacing), (y), 0, va("%c S", ironman ? '?' : ('0' + speed)));
+
+	V_DrawScaledPatch(x, ((y += ySpacing) - 1), 0, W_CachePatchName("CHSELWEI", PU_CACHE));
+	V_DrawThinString((x + iconSpacing), (y), 0, va("%c W", ironman ? '?' : ('0' + weight)));
 }
 
 
@@ -666,24 +682,25 @@ void M_DrawCharacter1PSelect(void)
 {
 	const UINT8 pid = 0;
 
-	UINT8 i, j, k;
+	UINT8 i, j;
 	INT16 quadx, quady;
 	INT16 skin;
-	INT32 basex = optionsmenu.profile ? (64 + M_EaseWithTransition(Easing_InSine, 5 * 48)) : 0 + CHARSEL_GRID_XOFFSET;
+	INT32 basex = optionsmenu.profile ? (64 + M_EaseWithTransition(Easing_InSine, 5 * 48)) : 0;
 	boolean forceskin = M_CharacterSelectForceInAction();
+	const setup_player_t *p = &setup_player[0];
 
-	{
+	{ // "Header", player instructions go here.
 		const int kLeft = 76;
 		const int kTop = 6;
 		const int kButtonWidth = 16;
 		INT32 x = basex + kLeft;
 
 		//We are past the profile selection
-		if(setup_player[k].mdepth > CSSTEP_PROFILE) {
+		if(p->mdepth > CSSTEP_PROFILE) {
 			K_drawButton((x += 22) * FRACUNIT, (kTop - 3) * FRACUNIT, 0, kp_button_r, M_MenuButtonPressed(pid, MBT_R));
-			if(setup_player[k].mdepth == CSSTEP_CHARS)
+			if(p->mdepth == CSSTEP_CHARS)
 				V_DrawThinString((x += kButtonWidth), kTop, 0, "Followers");
-			else if (setup_player[k].mdepth == CSSTEP_FOLLOWER)
+			else if (p->mdepth == CSSTEP_FOLLOWER)
 				V_DrawThinString((x += kButtonWidth), kTop, 0, "Characters");
 			
 
@@ -692,7 +709,7 @@ void M_DrawCharacter1PSelect(void)
 		}
 		else {
 			//Else hint the player to select a profile. X + 55 to center it. Couldn't bother wasting time to figure out the math being done here to properly center it!
-			if (setup_player[k].mdepth == CSSTEP_PROFILE)
+			if (p->mdepth == CSSTEP_PROFILE)
 			{
 				V_DrawThinString(x + 55, kTop, 0, "Select a profile");
 			}
@@ -701,6 +718,7 @@ void M_DrawCharacter1PSelect(void)
 			}
 		}
 	}
+
 	#if 0
 	// We have to loop twice -- first time to draw the drop shadows, a second time to draw the icons.
 	if (forceskin == false)
@@ -729,9 +747,14 @@ void M_DrawCharacter1PSelect(void)
 		}
 	}
 	#endif
+	
+	if(!optionsmenu.profile) {
+		basex += CHARSEL_GRID_XOFFSET;
+	}
+
 	// Draw this inbetween. These drop shadows should be covered by the stat graph, but the icons shouldn't.
 	V_DrawScaledPatch(basex+ 3, 2, 0, W_CachePatchName(("PR_STGRPH"), PU_CACHE));
-
+	//CONS_Printf("count %d", setup_flatchargrid.drawingListCount);
 	// Draw the icons now
 	for (UINT8 index = 0; index < setup_flatchargrid.drawingListCount; index++)
 	{
@@ -744,15 +767,6 @@ void M_DrawCharacter1PSelect(void)
 		if ((forceskin == true) && (skin != cv_forceskin.value))
 			continue;
 
-		for (UINT8 k = 0; k < setup_numplayers; k++)
-		{
-			if (setup_player[k].mdepth < CSSTEP_ASKCHANGES)
-				continue;
-			if (setup_player[k].gridx != i || setup_player[k].gridy != j)
-				continue;
-			break; // k == setup_numplayers means no one has it selected
-		}
-
 		UINT8 quadx = 4 * (i / 3);
 		UINT8 quady = 4 * (j / 3);
 
@@ -760,43 +774,42 @@ void M_DrawCharacter1PSelect(void)
 		{
 			UINT8* colormap;
 
-			if (k == setup_numplayers)
-				colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_GREY, GTC_MENUCACHE);
+			if (p->mdepth <= CSSTEP_PROFILE)
+				colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_GREY, GTC_MENUCACHE); //Draw them grey if you aren't still in the grid part
 			else
 				colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
 
 			V_DrawMappedPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
 
 			// draw dot if there are more alts behind there!
-			if (!forceskin && !setup_flatchargrid.skinList[index].isParent && setup_page + 1 < setup_flatchargrid.skinList[index].uniondata.clones->numClones)
-				V_DrawScaledPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE) );
+			//TODO: Do this when we start making the parenting shit
+			/*
+			if (!forceskin && setup_flatchargrid.skinList[index].isParent && setup_page + 1 < setup_flatchargrid.skinList[index].uniondata.clones->numClones)
+				V_DrawScaledPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE) );*/
 		}
 	}
 
 	// Explosions when you've made your final selection
 	M_DrawCharSelectExplosions(true, basex + 82, 22);
 
-	i = 0;
-	//for (i = 0; i < 1; i++) //This is where we had the logic for drawing the rest of the players. Oh woops, its gone now. Sad!
+	// This is where we had the logic for drawing the rest of the players. Oh woops, its gone now. Sad!
+	// Check if we are not in the options menu
+	if (optionsmenu.profile == NULL)
 	{
-		//Check if we are not in the options menu
-		if (optionsmenu.profile == NULL) 
+		M_DrawCharSelectPreview(i);
+		if (setup_player[0].mdepth > CSSTEP_PROFILE)
 		{
-			M_DrawCharSelectPreview(i);
-			if (setup_player[0].mdepth > CSSTEP_PROFILE)
-			{
-				M_DrawCharSelectInformation();
-			}
+			M_DrawCharSelectInformation();
 		}
-		else if (i == 0)
-		{
-			M_DrawProfileCard(optionsmenu.optx, optionsmenu.opty, false, optionsmenu.profile);
-		}
-
-		//if (i >= setup_numplayers)
-		//	continue;
-
-		// Draw the cursors
-		M_DrawCharSelectCursor(i);
 	}
+	else
+	{
+		M_DrawProfileCard(optionsmenu.optx, optionsmenu.opty, false, optionsmenu.profile);
+	}
+
+	// if (i >= setup_numplayers)
+	//	continue;
+
+	// Draw the cursors
+	M_DrawCharSelectCursor(0);
 }

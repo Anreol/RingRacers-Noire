@@ -171,7 +171,6 @@ UINT8 M_GetSkinIndexGivenPos(setup_player_t* p) {
     return setup_flatchargrid.drawingList[skinIndex];
 }
 
-#define STRESSTESTGRID
 //Reset the memory in drawingList, 
 ////set its size to UINT8 * numskins, then proceed to fill it to the indexes of then proceed to fill it to the indexes of setup_flatchargrid.skinList (which is a parallel list of skins, where the skin_t are) with the following rules:
 //if setup_flatchargrid.isExtended is false, do not put in ids that are part of a parent in the array
@@ -183,8 +182,9 @@ UINT8 M_GetSkinIndexGivenPos(setup_player_t* p) {
 //	WEIGHT sort by skin.kartweight
 //	SPEED sort by skin.kartspeed
 //	ENGINECLASS sort by calling R_GetEngineClass, and sort up to down (ENGINECLASS_A, ENGINECLASS_B...)
+#define STRESSTESTGRID
 void M_ResetDrawingList(void){
-    if (setup_flatchargrid.drawingList) {
+    if (setup_flatchargrid.drawingList != NULL) {
         Z_Free(setup_flatchargrid.drawingList);
     }
     setup_flatchargrid.drawingList = NULL;
@@ -215,6 +215,7 @@ void M_ResetDrawingList(void){
 	}
 	#endif
 }
+#undef STRESSTESTGRID
 
 static void M_NewPlayerColors(setup_player_t* p)
 {
@@ -379,6 +380,8 @@ void M_Character1PSelectInit(void)
 	setup_flatchargrid.sortingMode = 1;
 	setup_flatchargrid.isExtended = false;
 	setup_flatchargrid.skinList = Z_Malloc(sizeof(setup_clonelist_s) * numskins, PU_STATIC, NULL);
+	setup_flatchargrid.drawingList = NULL; //Malloc is done in M_ResetDrawingList
+	setup_flatchargrid.drawingListCount = 0;
 
 	memset(setup_player, 0, sizeof(setup_player));
 	setup_numplayers = 0;
