@@ -733,13 +733,13 @@ void M_DrawCharacter1PSelect(void)
 	V_DrawScaledPatch(basex+ 3, 2, 0, W_CachePatchName(("PR_STGRPH"), PU_CACHE));
 
 	// Draw the icons now
-	UINT8 numRows = (setup_flatchargrid.drawingListCount + CHARSEL_MAX_COLUMNS - 1) / CHARSEL_MAX_COLUMNS; // Calculate the number of rows
 	for (UINT8 index = 0; index < setup_flatchargrid.drawingListCount; index++)
 	{
 		UINT8 i = index % CHARSEL_MAX_COLUMNS;
 		UINT8 j = index / CHARSEL_MAX_COLUMNS;
 
-		UINT8 skin = setup_flatchargrid.drawingList[index];
+		const UINT8 drawingIndex = setup_flatchargrid.drawingList[index];
+		UINT8 skin = drawingIndex; //setup_flatchargrid.skinList[drawingIndex];
 
 		if ((forceskin == true) && (skin != cv_forceskin.value))
 			continue;

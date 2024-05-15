@@ -63,27 +63,7 @@ menu_t PLAY_CharSelect1PDef = {
 							   // input handling.
 };
 
-/*
-CV_PossibleValue_t skins_cons_t[MAXSKINS+1] = {{1, DEFAULTSKIN}};
-*/
-// Character Select!
-// @TODO: Splitscreen handling when profiles are added into the game. ...I probably won't be the one to handle this
-// however. -Lat'
-
 setup_flatchargrid_s setup_flatchargrid;
-
-/*
-setup_player_t setup_player[MAXSPLITSCREENPLAYERS];
-
-UINT8 setup_followercategories[MAXFOLLOWERCATEGORIES][2];
-UINT8 setup_numfollowercategories;
-
-UINT8 setup_numplayers = 0; // This variable is very important, it was extended to determine how many players exist in
-ALL menus. tic_t setup_animcounter = 0;
-
-UINT8 setup_page = 0;
-UINT8 setup_maxpage = 0;	// For charsel page to identify alts easier...
-*/
 
 static void M_PushMenuColor(setup_player_colors_t* colors, UINT16 newColor)
 {
@@ -98,8 +78,7 @@ static void M_PushMenuColor(setup_player_colors_t* colors, UINT16 newColor)
 			colors->listCap *= 2;
 		}
 
-		colors->list =
-			Z_ReallocAlign(colors->list, sizeof(UINT16) * colors->listCap, PU_STATIC, NULL, sizeof(UINT16) * 8);
+		colors->list = Z_ReallocAlign(colors->list, sizeof(UINT16) * colors->listCap, PU_STATIC, NULL, sizeof(UINT16) * 8);
 	}
 
 	colors->list[colors->listLen] = newColor;
@@ -185,9 +164,14 @@ static void M_PositionPlayerInGrid(setup_player_t* p, UINT8 skin) {
 UINT8 M_GetSkinIndexGivenPos(setup_player_t* p) {
     // Calculate the index of the skin based on player's gridx and gridy
     UINT8 skinIndex = p->gridy * CHARSEL_MAX_COLUMNS + p->gridx;
+	if(skinIndex >= setup_flatchargrid.drawingListCount) {
+		// uh
+		return setup_flatchargrid.drawingList[setup_flatchargrid.drawingListCount - 1];
+	}
     return setup_flatchargrid.drawingList[skinIndex];
 }
 
+#define STRESSTESTGRID
 //Reset the memory in drawingList, 
 ////set its size to UINT8 * numskins, then proceed to fill it to the indexes of then proceed to fill it to the indexes of setup_flatchargrid.skinList (which is a parallel list of skins, where the skin_t are) with the following rules:
 //if setup_flatchargrid.isExtended is false, do not put in ids that are part of a parent in the array
@@ -200,15 +184,36 @@ UINT8 M_GetSkinIndexGivenPos(setup_player_t* p) {
 //	SPEED sort by skin.kartspeed
 //	ENGINECLASS sort by calling R_GetEngineClass, and sort up to down (ENGINECLASS_A, ENGINECLASS_B...)
 void M_ResetDrawingList(void){
-    free(setup_flatchargrid.drawingList);
-    setup_flatchargrid.drawingList = NULL;
-
-    setup_flatchargrid.drawingList = (UINT8 *)malloc(sizeof(UINT8) * numskins);
-
-    for (UINT8 i = 0; i < numskins; i++) {
-        setup_flatchargrid.drawingList[i] = i;
-		setup_flatchargrid.drawingListCount++;
+    if (setup_flatchargrid.drawingList) {
+        Z_Free(setup_flatchargrid.drawingList);
     }
+    setup_flatchargrid.drawingList = NULL;
+	setup_flatchargrid.drawingListCount = 0;
+
+    setup_flatchargrid.drawingList = (UINT8 *)Z_Malloc(sizeof(UINT8) * numskins, PU_STATIC, NULL);
+    for (UINT8 i = 0; i < numskins; i++) {
+        if (setup_flatchargrid.isExtended && !setup_flatchargrid.skinList[i].isParent) {
+			setup_flatchargrid.drawingList[setup_flatchargrid.drawingListCount] = setup_flatchargrid.skinList[i].uniondata.parentID;
+        } else {
+            setup_flatchargrid.drawingList[setup_flatchargrid.drawingListCount] = i;
+        }
+        setup_flatchargrid.drawingListCount++;
+	}
+
+	#ifdef STRESSTESTGRID
+	// Reallocate drawingList to accommodate MAXSKINS
+	setup_flatchargrid.drawingList = (UINT8 *)Z_Realloc(setup_flatchargrid.drawingList, MAXSKINS * sizeof(UINT8), PU_STATIC, NULL);
+
+	// Fill the additional space with repeating skin indices
+	for (UINT8 i = 0, sgs = 0; i < MAXSKINS - setup_flatchargrid.drawingListCount; i++) {
+        setup_flatchargrid.drawingList[setup_flatchargrid.drawingListCount] = sgs;
+        setup_flatchargrid.drawingListCount++;
+        sgs++;
+        if (sgs >= numskins) {
+            sgs = 0;
+        }
+	}
+	#endif
 }
 
 static void M_NewPlayerColors(setup_player_t* p)
@@ -437,7 +442,7 @@ void M_Character1PSelectInit(void)
 			if (parentNum == -1)
 				continue; // Doesn't match! Continue.
 
-			if(skins[parentNum].parentnames)
+			//if(skins[parentNum].parentnames)
 			// Exit!
 			break;
 		}
@@ -445,7 +450,7 @@ void M_Character1PSelectInit(void)
 		if (parentNum != -1) // We have a parent
 		{
 			// Check if the not defined yet, as its id might be ahead of us
-			if (&setup_flatchargrid.skinList[parentNum] == NULL)
+			if (!&setup_flatchargrid.skinList[parentNum])
 			{
 				//We need to look up that skin, to see if it is a parent or not..
 			}
@@ -457,8 +462,7 @@ void M_Character1PSelectInit(void)
 					continue;
 				}
 
-				if (&parentclone->clones == NULL) { //This is a parent, but its clones didn't get alloc yet
-					parentclone->clones = Z_Malloc(sizeof(setup_clonelist_s), PU_STATIC, NULL);
+				if (parentclone->clones->cloneIds == NULL) { //This is a parent, but its clones didn't get alloc yet
 					parentclone->clones->numClones++;
 					parentclone->clones->cloneIds = Z_Malloc(sizeof(UINT8), PU_STATIC, NULL);
 					parentclone->clones->cloneIds[0] = i;
@@ -1475,8 +1479,7 @@ boolean M_Character1PSelectHandler(INT32 choice)
 		}
 		else
 		{
-			UINT8 skinIndexInPos = M_GetSkinIndexGivenPos(p);
-			p->skin = skinIndexInPos; //setup_flatchargrid.skinList[skinIndexInPos].cloneIds[p->clonenum];
+			p->skin = M_GetSkinIndexGivenPos(p);
 		}
 
 		if (playersChanged == true)
@@ -1629,12 +1632,3 @@ boolean M_Character1PSelectQuit(void)
 {
 	return true;
 }
-/*
-void Splitplayers_OnChange(void);
-void Splitplayers_OnChange(void)
-{
-#if 0
-	if (cv_splitplayers.value < setupm_pselect)
-		setupm_pselect = 1;
-#endif
-}*/
