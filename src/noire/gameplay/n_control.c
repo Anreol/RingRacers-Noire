@@ -8,7 +8,7 @@
 //-----------------------------------------------------------------------------
 
 #include "../n_cvar.h"
-#include "../z_zone.h"
+#include "../../z_zone.h"
 #include "../n_control.h"
 
 // Old update Player angle taken from old kart commits

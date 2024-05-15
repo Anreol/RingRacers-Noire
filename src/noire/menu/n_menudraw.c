@@ -389,6 +389,8 @@ static void M_DrawCharSelectPreview()
 
 	V_DrawScaledPatch(x, y+6, V_TRANSLUCENT, W_CachePatchName("PREVBACK", PU_CACHE));
 
+	V_DrawScaledPatch(x-5, y, 0, W_CachePatchName("DUELGRPH", PU_CACHE)); //We need to return the player frame as the player frames were part of the grid
+
 	//Draw the profile thing
 	INT32 backx = x + ((num & 1) ? -1 : 11);
 	V_DrawScaledPatch(backx, y+2, 0, W_CachePatchName("FILEBACK", PU_CACHE));
@@ -432,7 +434,7 @@ static void M_DrawCharSelectPreview()
 	// Profile selection
 	if (p->mdepth == CSSTEP_PROFILE)
 	{
-		INT16 px = x + 8; //Originally +12, selected this number so it appears centered
+		INT16 px = x + 7; //Originally +12, selected this number so it appears centered
 		INT16 py = y+48 - p->profilen*12 + Easing_OutSine(M_DueFrac(p->profilen_slide.start, 5), p->profilen_slide.dist*12, 0);
 		UINT8 maxp = PR_GetNumProfiles();
 
@@ -517,9 +519,32 @@ static void M_DrawCharSelectPreview()
 		}
 	}
 	UINT8 skinIndexGivenPos = M_GetSkinIndexGivenPos(p);
-	if (p->showextra == true)
-	{
-		//Do the color drawer shit here...
+}
+
+static void M_DrawCharSelectInformation() {
+	setup_player_t *p = &setup_player[0];
+	INT16 x = 15, y = 135;
+	INT8 ySpacing = 10;
+	INT8 iconSpacing = 12;
+	//Charname
+	V_DrawCenteredFileString(x+34, y, 0, skins[p->skin].realname);
+	
+	//Stats
+	x += 8;
+	y += 5;
+	V_DrawScaledPatch(x, ((y += ySpacing) - 1), 0, W_CachePatchName("CHSELSPD", PU_CACHE));
+	V_DrawThinString((x += iconSpacing), (y), 0, va("%d S", skins[p->skin].kartspeed));
+
+	V_DrawScaledPatch((x += 16), ((y) - 1), 0, W_CachePatchName("CHSELWEI", PU_CACHE));
+	V_DrawThinString((x + iconSpacing), (y), 0, va("%d W", skins[p->skin].kartweight));
+}
+
+
+static void M_DrawColorDrawer() {
+	setup_player_t *p = &setup_player[0];
+	INT16 x = 15, y = 50;
+	if(p->showextra) {
+
 	}
 }
 
@@ -667,7 +692,13 @@ void M_DrawCharacter1PSelect(void)
 		}
 		else {
 			//Else hint the player to select a profile. X + 55 to center it. Couldn't bother wasting time to figure out the math being done here to properly center it!
-			V_DrawThinString(x + 55, kTop, 0, "Select a profile");
+			if (setup_player[k].mdepth == CSSTEP_PROFILE)
+			{
+				V_DrawThinString(x + 55, kTop, 0, "Select a profile");
+			}
+			else if (((setup_animcounter/10) & 1)) {
+				V_DrawThinString(x + 55, kTop, 0, "Press a button!");
+			}
 		}
 	}
 	#if 0
@@ -752,6 +783,10 @@ void M_DrawCharacter1PSelect(void)
 		if (optionsmenu.profile == NULL) 
 		{
 			M_DrawCharSelectPreview(i);
+			if (setup_player[0].mdepth > CSSTEP_PROFILE)
+			{
+				M_DrawCharSelectInformation();
+			}
 		}
 		else if (i == 0)
 		{
