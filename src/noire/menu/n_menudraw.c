@@ -524,8 +524,8 @@ static void M_DrawCharSelectPreview()
 static void M_DrawCharSelectInformation() {
 	setup_player_t *p = &setup_player[0];
 	INT16 x = 15, y = 135;
-	UINT8 ySpacing = 10;
-	UINT8 iconSpacing = 12;
+	const UINT8 ySpacing = 10;
+	const UINT8 iconSpacing = 12;
 	//Charname
 	V_DrawCenteredFileString(x+34, y, 0, skins[p->skin].realname);
 	
