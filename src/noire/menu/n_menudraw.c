@@ -416,21 +416,6 @@ static void M_DrawCharSelectPreview()
 		M_DrawFollowerSprite(x+32+((charflip ? 1 : -1)*16), y+75, -1, charflip, p->mdepth == CSSTEP_ASKCHANGES ? V_TRANSLUCENT : 0, NULL, p);
 	}
 
-	//I have absolutely no fucking idea what this does other than making something blink so just disable it?
-	#if 0
-	if ((setup_animcounter/10) & 1)
-	{
-		if (p->mdepth == CSSTEP_NONE && num == setup_numplayers && gamestate == GS_MENU)
-		{
-			V_DrawScaledPatch(x+1, y+36, 0, W_CachePatchName("4PSTART", PU_CACHE));
-		}
-		else if (p->mdepth >= CSSTEP_READY)
-		{
-			V_DrawScaledPatch(x+1, y+36, 0, W_CachePatchName("4PREADY", PU_CACHE));
-		}
-	}
-	#endif
-
 	// Profile selection
 	if (p->mdepth == CSSTEP_PROFILE)
 	{
@@ -563,40 +548,6 @@ static void M_DrawColorDrawer() {
 
 	}
 }
-
-static void M_DrawCharSelectExplosions(boolean charsel, INT16 basex, INT16 basey)
-{
-	UINT8 i;
-	INT16 quadx = 2, quady = 2, mul = 22;
-
-	for (i = 0; i < CSEXPLOSIONS; i++)
-	{
-		UINT8 *colormap;
-		UINT8 frame;
-
-		if (setup_explosions[i].tics == 0 || setup_explosions[i].tics > 5)
-			continue;
-
-		frame = 6 - setup_explosions[i].tics;
-
-		if (charsel)
-		{
-			quadx = 4 * (setup_explosions[i].x / 3);
-			quady = 4 * (setup_explosions[i].y / 3);
-			mul = 16;
-		}
-
-		colormap = R_GetTranslationColormap(TC_DEFAULT, setup_explosions[i].color, GTC_MENUCACHE);
-
-		V_DrawMappedPatch(
-			basex + (setup_explosions[i].x*mul) + quadx - 6,
-			basey + (setup_explosions[i].y*mul) + quady - 6,
-			0, W_CachePatchName(va("CHCNFRM%d", frame), PU_CACHE),
-			colormap
-		);
-	}
-}
-
 #define IDLELEN 8
 #define SELECTLEN (8 + IDLELEN + 7 + IDLELEN)
 
@@ -752,10 +703,62 @@ void M_DrawCharacter1PSelect(void)
 		basex += CHARSEL_GRID_XOFFSET;
 	}
 
+    UINT8 finalWidth = CHARSEL_MAX_ROWS * CHARSEL_ICON_WIDTH + ((CHARSEL_MAX_ROWS / 3) * CHARSEL_ICON_PADDING_EVERY_THREE);
+    UINT8 finalHeight = CHARSEL_MAX_ROWS * CHARSEL_ICON_HEIGHT + ((CHARSEL_MAX_ROWS / 3) * CHARSEL_ICON_PADDING_EVERY_THREE);
+
+	//Set the clipping rect. the bottom (finalheight) has additional pixels so if theres more rows to select below, the player can see it peek out.
+	V_SetClipRect((basex + 82)*FRACUNIT, (22)*FRACUNIT, finalWidth*FRACUNIT, (finalHeight + CHARSEL_ICON_HEIGHT / 2)*FRACUNIT, 0); 
+
 	// Draw this inbetween. These drop shadows should be covered by the stat graph, but the icons shouldn't.
 	V_DrawScaledPatch(basex+ 3, 2, 0, W_CachePatchName(("PR_STGRPH"), PU_CACHE));
-	//CONS_Printf("count %d", setup_flatchargrid.drawingListCount);
-	// Draw the icons now
+
+	// Calculate the number of rows
+	const UINT8 numrows = (setup_flatchargrid.drawingListCount + CHARSEL_MAX_ROWS - 1) / CHARSEL_MAX_ROWS;
+
+	// Calculate the range of rows to draw
+	const int start_row = setup_charsel1p_row_offset - 1;
+	const int end_row = setup_charsel1p_row_offset + CHARSEL_MAX_ROWS;
+
+	for (int row = start_row; row <= end_row; row++) {
+		if (row < 0 || row >= numrows) continue;
+
+		for (UINT8 col = 0; col < CHARSEL_MAX_COLUMNS; col++) {
+			int index = row * CHARSEL_MAX_COLUMNS + col;
+			if (index >= setup_flatchargrid.drawingListCount) break;
+
+			const UINT8 drawingIndex = setup_flatchargrid.drawingList[index];
+			UINT8 skin = drawingIndex; // setup_flatchargrid.skinList[drawingIndex];
+
+			if (forceskin && skin != cv_forceskin.value) continue;
+
+			//UINT8 quadx = CHARSEL_ICON_PADDING_EVERY_THREE * (col / 3);
+			//UINT8 quady = CHARSEL_ICON_PADDING_EVERY_THREE * (row / 3);
+
+			// Calculate the quadx and quady based on the visible position
+			UINT8 visible_row = row - setup_charsel1p_row_offset;
+			UINT8 quadx = CHARSEL_ICON_PADDING_EVERY_THREE * (col / 3);
+			UINT8 quady = CHARSEL_ICON_PADDING_EVERY_THREE * (visible_row / 3);
+
+			if (skin != -1)
+			{
+				UINT8* colormap;
+
+				if (p->mdepth <= CSSTEP_PROFILE)
+					colormap = R_GetTranslationColormap(TC_RAINBOW, SKINCOLOR_GREY, GTC_MENUCACHE); //Draw them grey if you aren't still in the grid part
+				else
+					colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
+
+				// Calculate the y-coordinate
+				int y = 22 + ((row - setup_charsel1p_row_offset) * CHARSEL_ICON_HEIGHT) + quady;
+
+				// Draw the icon
+				V_DrawMappedPatch(basex + 82 + (col * CHARSEL_ICON_WIDTH) + quadx, y, 0, faceprefix[skin][FACE_RANK], colormap);
+			}
+		}
+	}
+
+	// Character grid
+	#if 0
 	for (UINT8 index = 0; index < setup_flatchargrid.drawingListCount; index++)
 	{
 		UINT8 i = index % CHARSEL_MAX_COLUMNS;
@@ -767,8 +770,8 @@ void M_DrawCharacter1PSelect(void)
 		if ((forceskin == true) && (skin != cv_forceskin.value))
 			continue;
 
-		UINT8 quadx = 4 * (i / 3);
-		UINT8 quady = 4 * (j / 3);
+		UINT8 quadx = CHARSEL_ICON_PADDING_EVERY_THREE * (i / 3);
+		UINT8 quady = CHARSEL_ICON_PADDING_EVERY_THREE * (j / 3);
 
 		if (skin != -1)
 		{
@@ -779,15 +782,22 @@ void M_DrawCharacter1PSelect(void)
 			else
 				colormap = R_GetTranslationColormap(skin, skins[skin].prefcolor, GTC_MENUCACHE);
 
-			V_DrawMappedPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady, 0, faceprefix[skin][FACE_RANK], colormap);
+			// Adjust the y-coordinate by the row offset
+			int adjusted_y = 22 + (j * CHARSEL_ICON_HEIGHT) + quady - (setup_charsel1p_row_offset * CHARSEL_ICON_HEIGHT);
+
+			// Draw the icon
+    		V_DrawMappedPatch(basex + 82 + (i * CHARSEL_ICON_WIDTH) + quadx, adjusted_y, 0, faceprefix[skin][FACE_RANK], colormap);
 
 			// draw dot if there are more alts behind there!
 			//TODO: Do this when we start making the parenting shit
 			/*
 			if (!forceskin && setup_flatchargrid.skinList[index].isParent && setup_page + 1 < setup_flatchargrid.skinList[index].uniondata.clones->numClones)
 				V_DrawScaledPatch(basex + 82 + (i * 16) + quadx, 22 + (j * 16) + quady + 11, 0, W_CachePatchName("ALTSDOT", PU_CACHE) );*/
-		}
-	}
+			}
+		} 
+	#endif
+
+	V_ClearClipRect();
 
 	// Explosions when you've made your final selection
 	M_DrawCharSelectExplosions(true, basex + 82, 22);

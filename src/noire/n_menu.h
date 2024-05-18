@@ -62,6 +62,10 @@ void M_ResetDrawingList(void);
 UINT8 M_GetSkinIndexGivenPos(setup_player_t* p);
 
 #define CHARSEL_MAX_COLUMNS 9
+#define CHARSEL_MAX_ROWS CHARSEL_MAX_COLUMNS
+#define CHARSEL_ICON_PADDING_EVERY_THREE 4
+#define CHARSEL_ICON_HEIGHT 16
+#define CHARSEL_ICON_WIDTH CHARSEL_ICON_HEIGHT
 
 typedef enum setup_sortMode {
     DEFAULT_ID = 1,
@@ -91,12 +95,13 @@ typedef struct parentorclone {
 typedef struct setup_flatchargrid_t {
     setup_sortMode_e sortingMode; 		// How we are currently sorting
 	boolean isExtended; 				// Is SkinList expanded right now or not, showing clones as individual items outside of their parents.
-    parentorclone_s *skinList;            // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL NOT CONTAIN UNUSABLE SKINS
+    parentorclone_s *skinList;          // Skins that we'll have. Parallel list to skins, but it will be the same size as numskins. WILL NOT CONTAIN UNUSABLE SKINS
 	UINT8 *drawingList;					// List of skinList indexes that we will draw. This will be resized and shuffled and whatever.
-    UINT8 drawingListCount;
+    UINT8 drawingListCount;             // Length of drawinglist, amount of individual items to draw
 } setup_flatchargrid_s;
 
 extern setup_flatchargrid_s setup_flatchargrid;
+extern UINT8 setup_charsel1p_row_offset;
 
 #ifdef __cplusplus
 } // extern "C"

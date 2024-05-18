@@ -1331,6 +1331,7 @@ void M_DrawImageDef(void);
 
 void M_DrawCharacterSelect(void);
 boolean M_DrawCharacterSprite(INT16 x, INT16 y, INT16 skin, UINT8 spr2, UINT8 rotation, UINT32 frame, INT32 addflags, UINT8 *colormap);
+void M_DrawCharSelectExplosions(boolean charsel, INT16 basex, INT16 basey); //NOIRE: Make this public
 
 void M_DrawCup(cupheader_t *cup, fixed_t x, fixed_t y, INT32 lockedTic, boolean isTrophy, UINT8 placement);
 void M_DrawCupSelect(void);

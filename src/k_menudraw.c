@@ -2206,7 +2206,7 @@ static void M_DrawCharSelectPreview(UINT8 num)
 	}
 }
 
-static void M_DrawCharSelectExplosions(boolean charsel, INT16 basex, INT16 basey)
+void M_DrawCharSelectExplosions(boolean charsel, INT16 basex, INT16 basey) //NOIRE: Originally was static!
 {
 	UINT8 i;
 	INT16 quadx = 2, quady = 2, mul = 22;
