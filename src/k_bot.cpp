@@ -19,6 +19,7 @@
 #include "doomdef.h"
 #include "d_player.h"
 #include "g_game.h"
+#include "noire/n_soc.h"
 #include "r_main.h"
 #include "p_local.h"
 #include "k_bot.h"
@@ -1786,7 +1787,7 @@ static void K_BuildBotTiccmdNormal(const player_t *player, ticcmd_t *cmd)
 		turnamt = K_HandleBotTrack(player, cmd, predict, destangle);
 		trySpindash = false;
 	}
-	else if (leveltime <= starttime && finishBeamLine != nullptr)
+	else if (leveltime <= starttime && finishBeamLine != nullptr && !N_UseLegacyStart())
 	{
 		// Handle POSITION!!
 		const fixed_t distBase = 480*mapobjectscale;
@@ -1873,6 +1874,16 @@ static void K_BuildBotTiccmdNormal(const player_t *player, ticcmd_t *cmd)
 				destangle = R_PointToAngle2(player->mo->x, player->mo->y, predict->x, predict->y);
 				turnamt = K_HandleBotTrack(player, cmd, predict, destangle);
 			}
+		}
+	}
+	else if (leveltime <= starttime && N_UseLegacyStart())
+	{
+		trySpindash = false;
+
+		if (leveltime >= starttime-TICRATE-TICRATE/7)
+		{
+			cmd->buttons |= BT_ACCELERATE;
+			cmd->forwardmove = MAXPLMOVE;
 		}
 	}
 	else
